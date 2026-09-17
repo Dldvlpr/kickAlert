@@ -1,0 +1,19 @@
+## Interface: 40402
+## Title: KickAlert
+## Notes: Alerte texte, halo d'écran et son quand la cible lance un sort interruptible et que ton kick est disponible. Gratuit, code source ouvert.
+## Author: Dldvlpr
+## Version: 1.0.0
+## SavedVariables: KickAlertDB
+## OptionalDeps: LibSharedMedia-3.0
+## X-Flavor: Cata
+## X-License: GPL-3.0-or-later
+
+# ATTENTION : fichier généré par tools/gen-toc.sh — ne pas éditer à la main.
+# L'ordre de load est le seul mécanisme de dépendance : Compat -> Core -> Alerts -> Detector -> Nameplates -> Config
+
+Compat.lua
+Core.lua
+Alerts.lua
+Detector.lua
+Nameplates.lua
+Config.lua
