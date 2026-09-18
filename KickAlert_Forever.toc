@@ -1,7 +1,6 @@
 ## Interface: 16001
 ## Title: KickAlert
 ## Notes: Alerte texte, halo d'écran et son quand la cible lance un sort interruptible et que ton kick est disponible. Gratuit, code source ouvert.
-## Author: Dldvlpr
 ## Version: 1.0.0
 ## SavedVariables: KickAlertDB
 ## OptionalDeps: LibSharedMedia-3.0

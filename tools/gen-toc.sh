@@ -23,7 +23,6 @@ render() {
 ## Interface: ${INTERFACE[$1]}
 ## Title: KickAlert
 ## Notes: Alerte texte, halo d'écran et son quand la cible lance un sort interruptible et que ton kick est disponible. Gratuit, code source ouvert.
-## Author: Dldvlpr
 ## Version: ${VERSION}
 ## SavedVariables: KickAlertDB
 ## OptionalDeps: LibSharedMedia-3.0

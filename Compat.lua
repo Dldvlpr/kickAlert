@@ -189,8 +189,11 @@ local function ShieldShownByUI(unit)
         bar = plate and plate.UnitFrame and plate.UnitFrame.castBar
     end
     local shield = bar and (bar.BorderShield or bar.borderShield)
-    if shield and shield.IsShown then return shield:IsShown() end
-    return nil
+    if not (shield and shield.IsShown) then return nil end
+    -- Sur 12.x, l'état d'affichage du bouclier hérite du secret de l'incantation : inutilisable alors.
+    local shown = shield:IsShown()
+    if isSecret(shown) then return nil end
+    return shown
 end
 
 local function ReadCast(isChannel, unit, name, _, texture, startTime, endTime, _, a7, a8, a9)
