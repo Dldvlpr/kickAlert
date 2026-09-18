@@ -8,6 +8,7 @@
 -- Un kick qui revient de cooldown au milieu du cast déclenche l'alerte, et un
 -- cast protégé (`notInterruptible`) n'en déclenche jamais.
 local _, NS = ...
+local L = NS.L
 
 local Detector = CreateFrame("Frame")
 NS.Detector = Detector
@@ -80,12 +81,14 @@ end
 
 local casts = {}   -- [guid] = { name, spellId, expires }
 
+-- Un GUID secret (moteur 12.x) ne peut pas servir de clé de table.
 local function ClearCast(guid)
-    if guid then casts[guid] = nil end
+    if guid and not NS.IsSecret(guid) then casts[guid] = nil end
 end
 
 function Detector:FallbackCast(guid)
-    local cast = guid and casts[guid]
+    if not guid or NS.IsSecret(guid) then return nil end
+    local cast = casts[guid]
     if not cast then return nil end
     if GetTime() > cast.expires then
         casts[guid] = nil
@@ -189,8 +192,12 @@ function Detector:Evaluate()
 end
 
 --- Une signature par incantation : le même cast ne doit pas rejouer le son à chaque tick.
+-- Numéro de cast par unité, incrémenté à chaque START : nom et spellId peuvent être des valeurs
+-- secrètes (moteur 12.x) et ne servent donc pas de clé.
+local castSerial = {}
+
 function Detector:ShowAlert(unit, name, spellId)
-    local signature = unit .. "|" .. tostring(spellId or name)
+    local signature = unit .. "|" .. (castSerial[unit] or 0)
     if self.showing == signature then return end
     self.showing = signature
     NS:Fire("CAST_START", unit, name, spellId)
@@ -256,6 +263,10 @@ Detector:SetScript("OnEvent", function(self, event, unit)
         self:Evaluate()
     elseif IsWatched(unit) then
         -- START, CHANNEL_START, DELAYED, INTERRUPTIBLE, NOT_INTERRUPTIBLE, EMPOWER_START
+        if event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START"
+            or event == "UNIT_SPELLCAST_EMPOWER_START" then
+            castSerial[unit] = (castSerial[unit] or 0) + 1
+        end
         self:Wake()
     end
 end)
@@ -268,17 +279,19 @@ function Detector:StatusLines()
     local remaining = self:InterruptRemaining()
     local spell = self.interruptSpell
         and ("%s (%d)"):format(self.interruptName or "?", self.interruptSpell)
-        or "|cffff5555aucun détecté|r"
+        or ("|cffff5555" .. L.STATUS_NONE .. "|r")
+    local yes, no = L.STATUS_YES, L.STATUS_NO
     return {
-        "interrupt : " .. spell .. (NS.db.spellId and " |cffaaaaaa(forcé)|r" or ""),
-        ("disponible : %s"):format(
-            remaining == nil and "?" or (remaining <= 0 and "oui" or ("dans %.1fs"):format(remaining))),
-        ("focus : %s   portée : %s   kick dispo requis : %s"):format(
-            NS.db.watchFocus ~= false and "oui" or "non",
-            NS.db.checkRange ~= false and "oui" or "non",
-            NS.db.onlyWhenReady ~= false and "oui" or "non"),
-        ("lecture des incantations : %s"):format(
-            NS.has.unitCastInfo and "API du client (+ repli combat log)" or "combat log uniquement"),
+        L.STATUS_INTERRUPT:format(spell) .. (NS.db.spellId and (" |cffaaaaaa" .. L.STATUS_FORCED .. "|r") or ""),
+        L.STATUS_AVAILABLE:format(
+            remaining == nil and "?" or (remaining <= 0 and yes or L.STATUS_IN:format(remaining))),
+        L.STATUS_FLAGS:format(
+            NS.db.watchFocus ~= false and yes or no,
+            NS.db.checkRange ~= false and yes or no,
+            NS.db.onlyWhenReady ~= false and yes or no),
+        L.STATUS_SOURCE:format(
+            NS.has.unitCastInfo and (NS.hasCombatLog and L.SOURCE_API_CLEU or L.SOURCE_API_ONLY)
+            or (NS.hasCombatLog and L.SOURCE_CLEU_ONLY or ("|cffff5555" .. L.SOURCE_NONE .. "|r"))),
     }
 end
 

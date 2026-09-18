@@ -1,6 +1,7 @@
 -- Panneau d'options (Interface > AddOns > KickAlert). Widgets Blizzard uniquement, pas de lib.
 -- Chaque réglage est appliqué immédiatement, sans /reload.
 local _, NS = ...
+local L = NS.L
 
 local panel = CreateFrame("Frame", "KickAlertOptions")
 panel:Hide()
@@ -170,84 +171,84 @@ local function Build()
     header:SetText("KickAlert")
     Place(left, header, 26)
     local sub = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    sub:SetText("/ka unlock pour déplacer le texte, /ka test pour prévisualiser, /ka reset pour les positions.")
+    sub:SetText(L.CFG_SUBTITLE)
     Place(left, sub, 20)
     right.y = left.y
 
     -- Colonne gauche : déclenchement + texte
-    Title(left, "Déclenchement")
+    Title(left, L.CFG_TRIGGER)
     if NS.has.focus then
-        Check(left, "Surveiller aussi le focus", function() return db.watchFocus end,
+        Check(left, L.CFG_WATCH_FOCUS, function() return db.watchFocus end,
             function(v) db.watchFocus = v; NS.Detector:UpdateWatchedGUIDs(); NS.Detector:Wake() end)
     end
-    Check(left, "Seulement si mon interruption est disponible", function() return db.onlyWhenReady end,
+    Check(left, L.CFG_ONLY_READY, function() return db.onlyWhenReady end,
         function(v) db.onlyWhenReady = v; NS.Detector:Wake() end)
-    Check(left, "Seulement si la cible est à portée", function() return db.checkRange end,
+    Check(left, L.CFG_CHECK_RANGE, function() return db.checkRange end,
         function(v) db.checkRange = v; NS.Detector:Wake() end)
 
-    Title(left, "Texte")
-    Check(left, "Activer le texte", function() return db.text.enabled end,
+    Title(left, L.CFG_TEXT)
+    Check(left, L.CFG_TEXT_ENABLE, function() return db.text.enabled end,
         function(v) db.text.enabled = v; ApplyText() end)
-    Edit(left, "Mot affiché", function() return db.text.label end,
+    Edit(left, L.CFG_TEXT_LABEL, function() return db.text.label end,
         function(v) db.text.label = v; ApplyText() end)
     local fonts = {}
     for _, f in ipairs(NS.GetFontList()) do fonts[#fonts + 1] = { name = f.name, value = f.path } end
-    Cycle(left, "Police", fonts, function() return db.text.font end,
+    Cycle(left, L.CFG_FONT, fonts, function() return db.text.font end,
         function(v) db.text.font = v; ApplyText() end)
-    Cycle(left, "Contour", {
-        { name = "Aucun", value = "NONE" },
-        { name = "Fin", value = "OUTLINE" },
-        { name = "Épais", value = "THICKOUTLINE" },
+    Cycle(left, L.CFG_OUTLINE, {
+        { name = L.OUTLINE_NONE, value = "NONE" },
+        { name = L.OUTLINE_THIN, value = "OUTLINE" },
+        { name = L.OUTLINE_THICK, value = "THICKOUTLINE" },
     }, function() return db.text.outline end, function(v) db.text.outline = v; ApplyText() end)
-    Slider(left, "Taille", 12, 128, 2, function() return db.text.size end,
+    Slider(left, L.CFG_SIZE, 12, 128, 2, function() return db.text.size end,
         function(v) db.text.size = v; ApplyText() end)
-    Color(left, "Couleur du texte", db.text.color, ApplyText)
-    Check(left, "Pulsation du texte", function() return db.text.pulse end,
+    Color(left, L.CFG_TEXT_COLOR, db.text.color, ApplyText)
+    Check(left, L.CFG_TEXT_PULSE, function() return db.text.pulse end,
         function(v) db.text.pulse = v; ApplyText() end)
-    Slider(left, "Vitesse de pulsation", 0.5, 6, 0.5, function() return db.text.pulseSpeed end,
+    Slider(left, L.CFG_PULSE_SPEED, 0.5, 6, 0.5, function() return db.text.pulseSpeed end,
         function(v) db.text.pulseSpeed = v end)
 
     if NS.has.namePlates and NS.has.namePlateUnits then
-        Title(left, "KICK sur les nameplates")
-        Check(left, "Afficher sur toutes les cibles hostiles", function() return db.nameplate.enabled end,
+        Title(left, L.CFG_NAMEPLATES)
+        Check(left, L.CFG_NAMEPLATES_ENABLE, function() return db.nameplate.enabled end,
             function(v) db.nameplate.enabled = v; NS.Nameplate:RefreshAll() end)
-        Cycle(left, "Police", fonts, function() return db.nameplate.text.font end,
+        Cycle(left, L.CFG_FONT, fonts, function() return db.nameplate.text.font end,
             function(v) db.nameplate.text.font = v; NS.Nameplate:RefreshAll() end)
-        Slider(left, "Taille", 8, 48, 1, function() return db.nameplate.text.size end,
+        Slider(left, L.CFG_SIZE, 8, 48, 1, function() return db.nameplate.text.size end,
             function(v) db.nameplate.text.size = v; NS.Nameplate:RefreshAll() end)
-        Color(left, "Couleur", db.nameplate.text.color, function() NS.Nameplate:RefreshAll() end)
+        Color(left, L.CFG_COLOR, db.nameplate.text.color, function() NS.Nameplate:RefreshAll() end)
     end
 
     -- Colonne droite : halo + son
-    Title(right, "Halo d'écran")
-    Check(right, "Activer le halo", function() return db.aura.enabled end,
+    Title(right, L.CFG_AURA)
+    Check(right, L.CFG_AURA_ENABLE, function() return db.aura.enabled end,
         function(v) db.aura.enabled = v; NS.Aura:Refresh() end)
-    Color(right, "Couleur du halo (alpha = intensité)", db.aura.color, function() NS.Aura:Refresh() end)
-    Slider(right, "Épaisseur", 20, 400, 10, function() return db.aura.thickness end,
+    Color(right, L.CFG_AURA_COLOR, db.aura.color, function() NS.Aura:Refresh() end)
+    Slider(right, L.CFG_THICKNESS, 20, 400, 10, function() return db.aura.thickness end,
         function(v) db.aura.thickness = v; NS.Aura:Refresh() end)
-    Check(right, "Pulsation du halo", function() return db.aura.pulse end,
+    Check(right, L.CFG_AURA_PULSE, function() return db.aura.pulse end,
         function(v) db.aura.pulse = v; NS.Aura:Refresh() end)
-    Slider(right, "Vitesse de pulsation", 0.5, 6, 0.5, function() return db.aura.pulseSpeed end,
+    Slider(right, L.CFG_PULSE_SPEED, 0.5, 6, 0.5, function() return db.aura.pulseSpeed end,
         function(v) db.aura.pulseSpeed = v end)
 
-    Title(right, "Son")
-    Check(right, "Activer le son", function() return db.sound.enabled end,
+    Title(right, L.CFG_SOUND)
+    Check(right, L.CFG_SOUND_ENABLE, function() return db.sound.enabled end,
         function(v) db.sound.enabled = v end)
     local presets = {}
     for _, name in ipairs(NS.SOUND_PRESET_ORDER) do presets[#presets + 1] = { name = name, value = name } end
-    Cycle(right, "Son", presets, function() return db.sound.sound end,
+    Cycle(right, L.CFG_SOUND, presets, function() return db.sound.sound end,
         function(v) db.sound.sound = v; NS.Sound:Play(true) end)
-    Edit(right, "Ou id SOUNDKIT / fichier (Interface\\AddOns\\X\\kick.ogg)",
+    Edit(right, L.CFG_SOUND_CUSTOM,
         function() return tostring(db.sound.sound or "") end,
         function(v)
             if v ~= "" then db.sound.sound = tonumber(v) or v end
             NS.Sound:Play(true)
         end)
-    Button(right, "Tester le son", function() NS.Sound:Play(true) end)
+    Button(right, L.CFG_SOUND_TEST, function() NS.Sound:Play(true) end)
 
-    Title(right, "Test")
-    Button(right, "Prévisualiser les 3 alertes (3 s)", function() NS:Test() end)
-    Button(right, "Déplacer / verrouiller le texte", function() NS:SetUnlocked(not NS.unlocked) end)
+    Title(right, L.CFG_TEST)
+    Button(right, L.CFG_TEST_PREVIEW, function() NS:Test() end)
+    Button(right, L.CFG_TEST_MOVE, function() NS:SetUnlocked(not NS.unlocked) end)
 end
 
 panel:SetScript("OnShow", function()

@@ -1,6 +1,7 @@
 -- Core.lua
 -- SavedVariables, bus interne, mixin de positionnement, commandes slash.
 local ADDON_NAME, NS = ...
+local L = NS.L
 
 NS.DEFAULTS = {
     version = 1,
@@ -125,12 +126,12 @@ NS.unlocked = false
 function NS:SetUnlocked(unlocked)
     self.unlocked = unlocked
     self:Fire("UNLOCK", unlocked)
-    NS.Print(unlocked and "Mode déplacement activé. /ka lock pour verrouiller." or "Positions verrouillées.")
+    NS.Print(unlocked and L.MSG_UNLOCKED or L.MSG_LOCKED)
 end
 
 -- Joue les 3 alertes pendant 3 secondes, puis rend la main au détecteur.
 function NS:Test()
-    self:Fire("CAST_START", "test", "Aperçu", 0)
+    self:Fire("CAST_START", "test", L.TEST_PREVIEW, 0)
     NS.Timer.After(3, function()
         NS:Fire("CAST_STOP")
         NS.Detector:ClearAlert()
@@ -169,13 +170,13 @@ SlashCmdList.KICKALERT = function(msg)
         NS:Test()
     elseif command == "reset" then
         NS:Fire("RESET_ANCHORS")
-        NS.Print("Positions réinitialisées.")
+        NS.Print(L.MSG_RESET)
     elseif command == "spell" then
         -- /ka spell <id> force le sort d'interruption suivi, /ka spell auto revient à la détection.
         NS.db.spellId = tonumber(argument)
         NS.Detector:ResolveInterrupt()
-        NS.Print(NS.db.spellId and ("Interruption forcée : " .. (NS.Detector.interruptName or argument))
-            or "Interruption détectée automatiquement.")
+        NS.Print(NS.db.spellId and string.format(L.MSG_SPELL_FORCED, NS.Detector.interruptName or argument)
+            or L.MSG_SPELL_AUTO)
     elseif command == "status" then
         for _, line in ipairs(NS.Detector:StatusLines()) do NS.Print(line) end
     else

@@ -30,12 +30,13 @@ end
 local function ApplyStyle(frame)
     local cfg = NS.db.nameplate.text
     local outline = cfg.outline ~= "NONE" and cfg.outline or nil
-    frame.label:SetText(cfg.label)
+    -- Police avant texte : SetText sans police est une erreur sur les clients récents.
     frame.label:SetFont(cfg.font, cfg.size, outline)
     if not frame.label:GetFont() then
         -- Chemin de police invalide (LibSharedMedia disparu) : repli Blizzard.
         frame.label:SetFont(NS.DEFAULTS.nameplate.text.font, cfg.size, outline)
     end
+    frame.label:SetText(cfg.label)
     frame.label:SetTextColor(cfg.color.r, cfg.color.g, cfg.color.b, cfg.color.a)
 end
 

@@ -53,6 +53,14 @@ NS.isRetail = (NS.flavor == "retail")
 local probe = CreateFrame("Frame")
 local eventExists = {}
 
+-- Moteur 12.x (Midnight, WoW Forever 1.60) : COMBAT_LOG_EVENT_UNFILTERED est interdit aux addons.
+-- Le sonder déclenche le popup ADDON_ACTION_FORBIDDEN même sous pcall : on l'exclut sans le tester.
+NS.hasCombatLog = not (C_DamageMeter or issecretvalue or (C_CombatLog and C_CombatLog.SetFilteredEventsEnabled))
+if not NS.hasCombatLog then
+    eventExists.COMBAT_LOG_EVENT_UNFILTERED = false
+    eventExists.COMBAT_LOG_EVENT = false
+end
+
 function NS.EventExists(event)
     local cached = eventExists[event]
     if cached ~= nil then return cached end
@@ -146,7 +154,46 @@ end
 local UnitCastingInfo = _G.UnitCastingInfo
 local UnitChannelInfo = _G.UnitChannelInfo
 
-local function ReadCast(isChannel, name, _, texture, startTime, endTime, _, a7, a8, a9)
+-- Moteur 12.x (Midnight, WoW Forever 1.60) : sur une unité hostile, UnitCastingInfo rend des
+-- « valeurs secrètes » : affichables, mais ni comparables ni testables. `notInterruptible` secret
+-- est remplacé par ce que le client montre lui-même : l'événement NOT_INTERRUPTIBLE reçu pour
+-- l'unité, ou le bouclier affiché sur la barre d'incantation Blizzard de cette unité.
+local isSecret = _G.issecretvalue or function() return false end
+NS.IsSecret = isSecret
+
+NS.castShield = {}   -- [unit] = true après UNIT_SPELLCAST_NOT_INTERRUPTIBLE, effacé au cast suivant
+local shieldFrame = CreateFrame("Frame")
+shieldFrame:SetScript("OnEvent", function(_, event, unit)
+    if not unit then return end
+    if event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE" then
+        NS.castShield[unit] = true
+    else
+        NS.castShield[unit] = nil
+    end
+end)
+for _, event in ipairs({
+    "UNIT_SPELLCAST_INTERRUPTIBLE", "UNIT_SPELLCAST_NOT_INTERRUPTIBLE",
+    "UNIT_SPELLCAST_START", "UNIT_SPELLCAST_CHANNEL_START",
+    "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_CHANNEL_STOP",
+}) do
+    pcall(shieldFrame.RegisterEvent, shieldFrame, event)
+end
+
+-- Bouclier « non interruptible » tel que dessiné par l'interface Blizzard (état de frame, jamais secret).
+local function ShieldShownByUI(unit)
+    local bar
+    if unit == "target" then bar = _G.TargetFrameSpellBar
+    elseif unit == "focus" then bar = _G.FocusFrameSpellBar
+    elseif C_NamePlate and C_NamePlate.GetNamePlateForUnit then
+        local plate = C_NamePlate.GetNamePlateForUnit(unit)
+        bar = plate and plate.UnitFrame and plate.UnitFrame.castBar
+    end
+    local shield = bar and (bar.BorderShield or bar.borderShield)
+    if shield and shield.IsShown then return shield:IsShown() end
+    return nil
+end
+
+local function ReadCast(isChannel, unit, name, _, texture, startTime, endTime, _, a7, a8, a9)
     if not name then return nil end
     local notInterruptible, spellId
     if isChannel then
@@ -154,20 +201,25 @@ local function ReadCast(isChannel, name, _, texture, startTime, endTime, _, a7, 
     else
         if type(a8) == "number" then spellId = a8 else notInterruptible, spellId = a8, a9 end
     end
-    return name, texture, startTime, endTime, notInterruptible == true, spellId, isChannel
+    if isSecret(notInterruptible) then
+        notInterruptible = NS.castShield[unit] or ShieldShownByUI(unit) or false
+    else
+        notInterruptible = notInterruptible == true
+    end
+    return name, texture, startTime, endTime, notInterruptible, spellId, isChannel
 end
 
 function NS.GetCastInfo(unit)
     if UnitCastingInfo then
         local name, texture, startTime, endTime, notInterruptible, spellId =
-            ReadCast(false, UnitCastingInfo(unit))
+            ReadCast(false, unit, UnitCastingInfo(unit))
         if name then
             return name, texture, startTime, endTime, notInterruptible, spellId, false
         end
     end
     if UnitChannelInfo then
         local name, texture, startTime, endTime, notInterruptible, spellId =
-            ReadCast(true, UnitChannelInfo(unit))
+            ReadCast(true, unit, UnitChannelInfo(unit))
         if name then
             return name, texture, startTime, endTime, notInterruptible, spellId, true
         end
@@ -181,10 +233,15 @@ end
 NS.IsSpellInRange = (C_Spell and C_Spell.IsSpellInRange)
     and function(spell, unit)
         local inRange = C_Spell.IsSpellInRange(spell, unit)
-        if inRange == nil then return nil end
+        -- Résultat secret (moteur 12.x, unité hostile) : le client ne nous laisse pas trancher.
+        if isSecret(inRange) or inRange == nil then return nil end
         return inRange and 1 or 0
     end
-    or _G.IsSpellInRange
+    or (_G.IsSpellInRange and function(spell, unit)
+        local inRange = _G.IsSpellInRange(spell, unit)
+        if isSecret(inRange) then return nil end
+        return inRange
+    end)
 
 --------------------------------------------------------------------------------
 -- Sons
