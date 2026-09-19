@@ -158,15 +158,25 @@ local UnitChannelInfo = _G.UnitChannelInfo
 -- « valeurs secrètes » : affichables, mais ni comparables ni testables. `notInterruptible` secret
 -- est remplacé par ce que le client montre lui-même : l'événement NOT_INTERRUPTIBLE reçu pour
 -- l'unité, ou le bouclier affiché sur la barre d'incantation Blizzard de cette unité.
+-- Limite : un cast protégé dès son début n'émet pas NOT_INTERRUPTIBLE (la barre Blizzard lit
+-- l'état initial dans UnitCastingInfo, secret lui aussi) : faute d'indice, il passe pour
+-- interruptible et l'alerte part. `/ka status` montre, cible en incantation, si ce client
+-- rend la valeur secrète et sur quel repli on s'appuie.
 local isSecret = _G.issecretvalue or function() return false end
 NS.IsSecret = isSecret
 
-NS.castShield = {}   -- [unit] = true après UNIT_SPELLCAST_NOT_INTERRUPTIBLE, effacé au cast suivant
+-- [unit] = true après NOT_INTERRUPTIBLE, false après INTERRUPTIBLE, nil (aucune info) au cast suivant.
+NS.castShield = {}
 local shieldFrame = CreateFrame("Frame")
 shieldFrame:SetScript("OnEvent", function(_, event, unit)
+    -- Le token désigne une autre unité : l'état de l'ancienne ne doit pas masquer une alerte.
+    if event == "PLAYER_TARGET_CHANGED" then NS.castShield.target = nil return end
+    if event == "PLAYER_FOCUS_CHANGED" then NS.castShield.focus = nil return end
     if not unit then return end
     if event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE" then
         NS.castShield[unit] = true
+    elseif event == "UNIT_SPELLCAST_INTERRUPTIBLE" then
+        NS.castShield[unit] = false
     else
         NS.castShield[unit] = nil
     end
@@ -175,6 +185,7 @@ for _, event in ipairs({
     "UNIT_SPELLCAST_INTERRUPTIBLE", "UNIT_SPELLCAST_NOT_INTERRUPTIBLE",
     "UNIT_SPELLCAST_START", "UNIT_SPELLCAST_CHANNEL_START",
     "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_CHANNEL_STOP",
+    "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED", "NAME_PLATE_UNIT_REMOVED",
 }) do
     pcall(shieldFrame.RegisterEvent, shieldFrame, event)
 end
@@ -204,27 +215,35 @@ local function ReadCast(isChannel, unit, name, _, texture, startTime, endTime, _
     else
         if type(a8) == "number" then spellId = a8 else notInterruptible, spellId = a8, a9 end
     end
+    -- shieldSource : "api" (valeur lue), "event" (secrète, repli NOT_INTERRUPTIBLE / bouclier
+    -- Blizzard) ou "unknown" (secrète, aucun repli : interruptible par défaut). Diagnostic seulement.
+    local shieldSource = "api"
     if isSecret(notInterruptible) then
-        notInterruptible = NS.castShield[unit] or ShieldShownByUI(unit) or false
+        local fallback = NS.castShield[unit]
+        if fallback == nil then fallback = ShieldShownByUI(unit) end
+        shieldSource = fallback ~= nil and "event" or "unknown"
+        notInterruptible = fallback or false
     else
+        -- Classic Era ne rend pas ce booléen du tout : rien n'a été « lu ».
+        if notInterruptible == nil then shieldSource = "unknown" end
         notInterruptible = notInterruptible == true
     end
-    return name, texture, startTime, endTime, notInterruptible, spellId, isChannel
+    return name, texture, startTime, endTime, notInterruptible, spellId, isChannel, shieldSource
 end
 
 function NS.GetCastInfo(unit)
     if UnitCastingInfo then
-        local name, texture, startTime, endTime, notInterruptible, spellId =
+        local name, texture, startTime, endTime, notInterruptible, spellId, _, shieldSource =
             ReadCast(false, unit, UnitCastingInfo(unit))
         if name then
-            return name, texture, startTime, endTime, notInterruptible, spellId, false
+            return name, texture, startTime, endTime, notInterruptible, spellId, false, shieldSource
         end
     end
     if UnitChannelInfo then
-        local name, texture, startTime, endTime, notInterruptible, spellId =
+        local name, texture, startTime, endTime, notInterruptible, spellId, _, shieldSource =
             ReadCast(true, unit, UnitChannelInfo(unit))
         if name then
-            return name, texture, startTime, endTime, notInterruptible, spellId, true
+            return name, texture, startTime, endTime, notInterruptible, spellId, true, shieldSource
         end
     end
     return nil

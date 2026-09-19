@@ -399,6 +399,8 @@ for _, name in ipairs(NOOP_METHODS) do FrameMeta[name] = NoOp end
 function FrameMeta:SetText(text) self.text = text end
 function FrameMeta:GetText() return self.text end
 function FrameMeta:SetFont(path, size, flags)
+    -- Contrat du client depuis 10.0 : flags est obligatoire, la chaine vide est acceptee, nil est une erreur.
+    assert(type(flags) == "string", "SetFont: flags obligatoire (chaine, eventuellement vide) depuis 10.0")
     self.font, self.fontSize, self.fontFlags = path, size, flags
 end
 function FrameMeta:GetFont() return self.font, self.fontSize, self.fontFlags end

@@ -81,6 +81,20 @@ end
 
 local casts = {}   -- [guid] = { name, spellId, expires }
 
+-- Numéro de cast par unité surveillée ("target", "focus"), incrémenté à chaque START.
+-- Sert de signature à Detector:ShowAlert.
+local castSerial = {}
+local castStartedAt = {}
+
+--- Une incantation vue par l'API (UNIT_SPELLCAST_START) et par le combat log
+-- (SPELL_CAST_START) arrive dans la même frame : GetTime() y est constant, un seul numéro.
+local function NoteCastStart(unit)
+    local now = GetTime()
+    if castStartedAt[unit] == now then return end
+    castStartedAt[unit] = now
+    castSerial[unit] = (castSerial[unit] or 0) + 1
+end
+
 -- Un GUID secret (moteur 12.x) ne peut pas servir de clé de table.
 local function ClearCast(guid)
     if guid and not NS.IsSecret(guid) then casts[guid] = nil end
@@ -113,12 +127,17 @@ local CombatLogGetCurrentEventInfo = CombatLogGetCurrentEventInfo
 local function OnCombatLog()
     local _, sub, _, srcGUID, _, _, _, dstGUID, _, _, _, spellId, spellName = CombatLogGetCurrentEventInfo()
     if sub == "SPELL_CAST_START" then
-        if srcGUID ~= Detector.targetGUID and srcGUID ~= Detector.focusGUID then return end
+        -- `not srcGUID` : sans cible ni focus, nil == nil passerait le garde et écrirait casts[nil].
+        if not srcGUID or (srcGUID ~= Detector.targetGUID and srcGUID ~= Detector.focusGUID) then return end
         casts[srcGUID] = {
             name    = spellName or NS.GetSpellName(spellId) or "?",
             spellId = spellId,
             expires = GetTime() + FALLBACK_CAST_MAX,
         }
+        -- Nouveau numéro de cast : un cast raté (jamais loggé pour un PNJ) suivi d'un autre
+        -- doit redéclencher l'alerte, pas garder la signature du précédent.
+        if srcGUID == Detector.targetGUID then NoteCastStart("target") end
+        if srcGUID == Detector.focusGUID  then NoteCastStart("focus") end
         Detector:Wake()
     elseif sub == "SPELL_CAST_SUCCESS" or sub == "SPELL_CAST_FAILED" then
         if casts[srcGUID] then
@@ -192,10 +211,9 @@ function Detector:Evaluate()
 end
 
 --- Une signature par incantation : le même cast ne doit pas rejouer le son à chaque tick.
--- Numéro de cast par unité, incrémenté à chaque START : nom et spellId peuvent être des valeurs
--- secrètes (moteur 12.x) et ne servent donc pas de clé.
-local castSerial = {}
-
+-- `castSerial` (déclaré avec le repli combat log) est incrémenté à chaque START, qu'il vienne
+-- du client ou du combat log : nom et spellId peuvent être des valeurs secrètes (moteur 12.x)
+-- et ne servent donc pas de clé.
 function Detector:ShowAlert(unit, name, spellId)
     local signature = unit .. "|" .. (castSerial[unit] or 0)
     if self.showing == signature then return end
@@ -265,7 +283,7 @@ Detector:SetScript("OnEvent", function(self, event, unit)
         -- START, CHANNEL_START, DELAYED, INTERRUPTIBLE, NOT_INTERRUPTIBLE, EMPOWER_START
         if event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START"
             or event == "UNIT_SPELLCAST_EMPOWER_START" then
-            castSerial[unit] = (castSerial[unit] or 0) + 1
+            NoteCastStart(unit)
         end
         self:Wake()
     end
@@ -281,7 +299,7 @@ function Detector:StatusLines()
         and ("%s (%d)"):format(self.interruptName or "?", self.interruptSpell)
         or ("|cffff5555" .. L.STATUS_NONE .. "|r")
     local yes, no = L.STATUS_YES, L.STATUS_NO
-    return {
+    local lines = {
         L.STATUS_INTERRUPT:format(spell) .. (NS.db.spellId and (" |cffaaaaaa" .. L.STATUS_FORCED .. "|r") or ""),
         L.STATUS_AVAILABLE:format(
             remaining == nil and "?" or (remaining <= 0 and yes or L.STATUS_IN:format(remaining))),
@@ -293,6 +311,24 @@ function Detector:StatusLines()
             NS.has.unitCastInfo and (NS.hasCombatLog and L.SOURCE_API_CLEU or L.SOURCE_API_ONLY)
             or (NS.hasCombatLog and L.SOURCE_CLEU_ONLY or ("|cffff5555" .. L.SOURCE_NONE .. "|r"))),
     }
+    -- Cible en incantation : d'où vient l'état « protégé ». Sur moteur 12.x la valeur est
+    -- secrète et "unknown" signale le cas où l'alerte part sans pouvoir trancher.
+    if UnitExists("target") then
+        local name, _, _, _, notInterruptible, _, _, shieldSource = NS.GetCastInfo("target")
+        if not name then
+            -- Client sans UnitCastingInfo : seul le combat log voit l'incantation, sans état protégé.
+            name, notInterruptible, shieldSource = self:FallbackCast(UnitGUID("target")), false, "unknown"
+        end
+        if name then
+            local sourceLabel = shieldSource == "api" and L.SHIELD_API
+                or shieldSource == "event" and L.SHIELD_EVENT
+                or ("|cffff5555" .. L.SHIELD_UNKNOWN .. "|r")
+            -- Nom secret (12.x) : affichable par SetText, pas par string.format.
+            local shownName = NS.IsSecret(name) and "?" or name
+            lines[#lines + 1] = L.STATUS_TARGET_CAST:format(shownName, notInterruptible and yes or no, sourceLabel)
+        end
+    end
+    return lines
 end
 
 --------------------------------------------------------------------------------

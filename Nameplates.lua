@@ -29,7 +29,8 @@ end
 
 local function ApplyStyle(frame)
     local cfg = NS.db.nameplate.text
-    local outline = cfg.outline ~= "NONE" and cfg.outline or nil
+    -- Chaîne vide et non nil : depuis 10.0 SetFont exige les flags.
+    local outline = cfg.outline ~= "NONE" and cfg.outline or ""
     -- Police avant texte : SetText sans police est une erreur sur les clients récents.
     frame.label:SetFont(cfg.font, cfg.size, outline)
     if not frame.label:GetFont() then

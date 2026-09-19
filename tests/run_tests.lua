@@ -23,9 +23,8 @@ for _, argument in ipairs({ ... }) do
     if argument == "--retail" then retail = true end
 end
 
--- Les fichiers de Locale/ commencent par `if GetLocale() ~= "xxXX" then return end`.
--- Le mock n'expose pas GetLocale : on force enUS, la base de repli, pour que les
--- autres locales se court-circuitent comme sur un client anglais.
+-- Locale/Locale.lua lit GetLocale() pour choisir la langue du client. Le mock ne
+-- l'expose pas : on force enUS, la base de repli, comme sur un client anglais.
 GetLocale = GetLocale or function() return "enUS" end
 
 -- Compat.lua capture _G.PlaySound dans un local au chargement : pour simuler un
@@ -224,10 +223,25 @@ ok(Text:IsShown(), "repli combat log : alerte sur SPELL_CAST_START")
 Mock.FireCombatLog("SPELL_CAST_SUCCESS", BOSS_GUID, PLAYER_GUID, 18435, "Fireball Volley")
 equal(Text:IsShown(), false, "repli combat log : alerte retirée au SUCCESS")
 
+-- Cast raté (SPELL_CAST_FAILED jamais loggé pour un PNJ) puis nouveau cast : deux incantations, deux sons.
+Mock.Advance(0.5)
+soundsBefore = #Mock.sounds
+Mock.FireCombatLog("SPELL_CAST_START", BOSS_GUID, PLAYER_GUID, 18435, "Fireball Volley")
+Mock.Advance(0.5)
+Mock.FireCombatLog("SPELL_CAST_START", BOSS_GUID, PLAYER_GUID, 18435, "Fireball Volley")
+equal(#Mock.sounds, soundsBefore + 2, "repli combat log : cast raté puis nouveau cast = nouveau son")
+Mock.FireCombatLog("SPELL_CAST_SUCCESS", BOSS_GUID, PLAYER_GUID, 18435, "Fireball Volley")
+equal(Text:IsShown(), false, "repli combat log : alerte retirée après le second cast")
+
+Mock.Advance(0.5)
+ns.db.sound.throttle = 0
+soundsBefore = #Mock.sounds
 Mock.SetCast("target", 18435, false)
 Mock.FireCombatLog("SPELL_CAST_START", BOSS_GUID, PLAYER_GUID, 18435, "Fireball Volley")
 Mock.FireEvent("UNIT_SPELLCAST_START", "target")
 ok(Text:IsShown(), "cast vu par l'API et par le combat log : alerte")
+equal(#Mock.sounds, soundsBefore + 1, "cast vu par l'API et par le combat log : un seul son, même sans throttle")
+ns.db.sound.throttle = 0.4
 Mock.SetCast("target", nil)
 Mock.FireEvent("UNIT_SPELLCAST_INTERRUPTED", "target")
 equal(Text:IsShown(), false, "cast annulé côté client : pas d'incantation fantôme via le repli")
@@ -236,6 +250,15 @@ equal(Text:IsShown(), false, "... et le ticker ne la ressort pas")
 
 Mock.FireCombatLog("SPELL_CAST_START", "Creature-0-1-2-3-99999-000009", PLAYER_GUID, 18435, "Autre")
 equal(Text:IsShown(), false, "incantation d'une autre unité : ignorée")
+
+-- Sans cible ni focus, un SPELL_CAST_START sans source (nil == nil) ne doit pas écrire casts[nil].
+local savedTarget = Mock.units.target
+Mock.units.target = nil
+Mock.FireEvent("PLAYER_TARGET_CHANGED")
+local noSourceOk = pcall(Mock.FireCombatLog, "SPELL_CAST_START", nil, PLAYER_GUID, 18435, "Sans source")
+ok(noSourceOk and not Text:IsShown(), "combat log sans source ni cible : ignoré sans erreur")
+Mock.units.target = savedTarget
+Mock.FireEvent("PLAYER_TARGET_CHANGED")
 
 Mock.legacyCastInfo = true
 StartCast(17086, false)
@@ -271,12 +294,41 @@ equal(Text.label:GetText(), "STOP ÇA", "mot affiché configurable")
 equal(select(2, Text.label:GetFont()), 64, "taille de police configurable")
 StopCast()
 ns.db.text.label = "KICK"
+-- Contour « Aucun » : SetFont exige une chaîne pour les flags depuis 10.0, jamais nil.
+ns.db.text.outline = "NONE"
+StartCast(17086, false)
+equal(select(3, Text.label:GetFont()), "", "contour Aucun : flags vide, pas nil")
+StopCast()
+ns.db.text.outline = "OUTLINE"
 
 suite("Commandes")
 SlashCmdList.KICKALERT("spell 2139")
 equal(Detector.interruptSpell, 2139, "/ka spell <id>")
 SlashCmdList.KICKALERT("spell auto")
 equal(Detector.interruptSpell, 1766, "/ka spell auto")
+
+-- /ka status : une ligne sur l'incantation de la cible quand elle lance quelque chose.
+-- Le chemin « valeur secrète » (moteur 12.x) n'est pas testable ici : Compat.lua capture
+-- issecretvalue au chargement et le mock ne l'expose pas.
+equal(#Detector:StatusLines(), 4, "/ka status : 4 lignes sans incantation")
+StartCast(17086, true)
+local statusLines = Detector:StatusLines()
+equal(#statusLines, 5, "/ka status : ligne d'incantation quand la cible lance un sort")
+ok(statusLines[5]:find("Flame Breath", 1, true) ~= nil, "/ka status : nom du sort")
+ok(statusLines[5]:find(ns.L.SHIELD_API, 1, true) ~= nil, "/ka status : source de l'état protégé")
+StopCast()
+Mock.FireCombatLog("SPELL_CAST_START", BOSS_GUID, PLAYER_GUID, 18435, "Fireball Volley")
+statusLines = Detector:StatusLines()
+ok(#statusLines == 5 and statusLines[5]:find("Fireball Volley", 1, true) ~= nil,
+    "/ka status : incantation vue seulement par le combat log")
+ok(statusLines[5]:find(ns.L.SHIELD_UNKNOWN, 1, true) ~= nil, "/ka status : état protégé inconnu via le combat log")
+Mock.FireCombatLog("SPELL_CAST_SUCCESS", BOSS_GUID, PLAYER_GUID, 18435, "Fireball Volley")
+
+-- Bouclier mémorisé pour « target » : oublié quand le token désigne une autre unité.
+Mock.FireEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "target")
+equal(ns.castShield.target, true, "NOT_INTERRUPTIBLE mémorisé pour la cible")
+Mock.FireEvent("PLAYER_TARGET_CHANGED")
+equal(ns.castShield.target, nil, "changement de cible : bouclier de l'ancienne cible oublié")
 
 SlashCmdList.KICKALERT("unlock")
 ok(Text:IsShown(), "/ka unlock : texte visible pour le déplacement")
@@ -358,6 +410,10 @@ Mock.SetCast("nameplate3", 17086, false)
 Mock.FireEvent("UNIT_SPELLCAST_START", "nameplate3")
 equal(Nameplate:GetFrame("nameplate3").label:GetText(), "GO", "mot affiché configurable")
 equal(select(2, Nameplate:GetFrame("nameplate3").label:GetFont()), 20, "taille configurable")
+ns.db.nameplate.text.outline = "NONE"
+Mock.FireEvent("UNIT_SPELLCAST_DELAYED", "nameplate3")
+equal(select(3, Nameplate:GetFrame("nameplate3").label:GetFont()), "", "contour Aucun : flags vide, pas nil")
+ns.db.nameplate.text.outline = "OUTLINE"
 Mock.SetCast("nameplate3", nil)
 Mock.FireEvent("UNIT_SPELLCAST_STOP", "nameplate3")
 ns.db.nameplate.text.label = "KICK"

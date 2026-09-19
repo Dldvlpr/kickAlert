@@ -42,7 +42,8 @@ Text.background:Hide()
 
 function Text:Apply()
     local cfg = NS.db.text
-    local outline = cfg.outline ~= "NONE" and cfg.outline or nil
+    -- Chaîne vide et non nil : depuis 10.0 SetFont exige les flags.
+    local outline = cfg.outline ~= "NONE" and cfg.outline or ""
     self.label:SetFont(cfg.font, cfg.size, outline)
     if not self.label:GetFont() then
         -- Chemin de police invalide (LibSharedMedia disparu) : repli Blizzard.
