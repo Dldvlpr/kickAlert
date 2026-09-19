@@ -6,6 +6,10 @@
 -- main. Le mock est celui de MyBossSuite (tests/wow_mock.lua), complété ici des
 -- méthodes que KickAlert utilise en plus.
 
+-- Le client WoW tourne en Lua 5.1, où `unpack` est un global. Sur un interpréteur
+-- 5.2+ il a migré dans table : on le réexpose pour que le mock s'exécute pareil.
+unpack = unpack or table.unpack
+
 package.path = "tests/?.lua;" .. package.path
 require("wow_mock")
 
@@ -19,8 +23,53 @@ for _, argument in ipairs({ ... }) do
     if argument == "--retail" then retail = true end
 end
 
+-- Les fichiers de Locale/ commencent par `if GetLocale() ~= "xxXX" then return end`.
+-- Le mock n'expose pas GetLocale : on force enUS, la base de repli, pour que les
+-- autres locales se court-circuitent comme sur un client anglais.
+GetLocale = GetLocale or function() return "enUS" end
+
+-- Compat.lua capture _G.PlaySound dans un local au chargement : pour simuler un
+-- son injouable il faut remplacer le global ici, pas après coup. Mock.soundWillPlay
+-- reproduit le contrat du client (PlaySound renvoie willPlay).
+-- Constantes SOUNDKIT relevées sur un vrai client (/ka sounds) : sans elles, les
+-- presets ne résolvent pas et le test d'unicité des sons ne vérifie plus rien.
+for name, id in pairs({
+    RAID_WARNING = 8959, READY_CHECK = 8960, RAID_BOSS_EMOTE_WARNING = 12197,
+    ALARM_CLOCK_WARNING_1 = 18871, ALARM_CLOCK_WARNING_2 = 12867,
+    UI_GARRISON_TOAST_INVASION_ALERT = 44292, GM_CHAT_WARNING = 15273,
+    IG_MAINMENU_OPTION_CHECKBOX_ON = 856,
+}) do
+    _G.SOUNDKIT[name] = _G.SOUNDKIT[name] or id
+end
+
+local realPlaySound = _G.PlaySound
+Mock.soundWillPlay = true
+_G.PlaySound = function(id, channel)
+    realPlaySound(id, channel)
+    return Mock.soundWillPlay
+end
+
 local FrameMeta = getmetatable(CreateFrame("Frame"))
 local function NoOp() end
+-- Le panneau d'options vit dans un ScrollFrame : le mock ignore ces méthodes,
+-- seul compte le fait que Config.lua les appelle sans erreur.
+-- IsVisible() du mock ignorait les parents et se comportait comme IsShown() :
+-- c'est précisément ce qui avait laissé passer l'aperçu resté à l'écran après
+-- fermeture de la fenêtre Options. Ici il remonte la chaîne, comme le client.
+function FrameMeta:IsVisible()
+    if self.shown ~= true then return false end
+    local parent = self.parent
+    while parent do
+        if parent.shown == false then return false end
+        parent = parent.parent
+    end
+    return true
+end
+
+FrameMeta.SetScrollChild = FrameMeta.SetScrollChild or NoOp
+FrameMeta.SetVerticalScroll = FrameMeta.SetVerticalScroll or NoOp
+FrameMeta.GetVerticalScroll = FrameMeta.GetVerticalScroll or function() return 0 end
+FrameMeta.GetVerticalScrollRange = FrameMeta.GetVerticalScrollRange or function() return 0 end
 for _, name in ipairs({ "SetAutoFocus", "ClearFocus", "SetValueStep", "SetObeyStepOnDrag" }) do
     FrameMeta[name] = FrameMeta[name] or NoOp
 end
@@ -61,7 +110,14 @@ end
 -- Chargement
 --------------------------------------------------------------------------------
 
-local FILES = { "Compat.lua", "Core.lua", "Alerts.lua", "Detector.lua", "Nameplates.lua", "Config.lua" }
+-- Même ordre que KickAlert.toc : les locales d'abord, enUS en premier (base des fallbacks).
+local FILES = {
+    "Locale/enUS.lua", "Locale/frFR.lua", "Locale/deDE.lua", "Locale/esES.lua",
+    "Locale/esMX.lua", "Locale/itIT.lua", "Locale/ptBR.lua", "Locale/ruRU.lua",
+    "Locale/koKR.lua", "Locale/zhCN.lua", "Locale/zhTW.lua",
+    "Locale/Locale.lua",
+    "Compat.lua", "Core.lua", "Alerts.lua", "Detector.lua", "Nameplates.lua", "Config.lua",
+}
 
 Mock.InstallTimerAPI(useNativeTimers)
 if retail then Mock.InstallRetail() end
@@ -306,6 +362,103 @@ Mock.SetCast("nameplate3", nil)
 Mock.FireEvent("UNIT_SPELLCAST_STOP", "nameplate3")
 ns.db.nameplate.text.label = "KICK"
 ns.db.nameplate.text.size = 14
+
+--------------------------------------------------------------------------------
+
+suite("Aperçu du panneau d'options")
+-- Reproduit la fermeture de la fenêtre Options : le client masque la fenêtre
+-- parente, jamais notre panneau. L'aperçu doit malgré tout s'éteindre.
+local optionsWindow = CreateFrame("Frame")
+local panel = ns.optionsPanel
+ok(panel ~= nil, "panneau d'options enregistré")
+panel:SetParent(optionsWindow)
+optionsWindow:Show()
+panel:Show()
+Text:Refresh()
+Aura:Refresh()
+ok(Text:IsShown(), "panneau ouvert : aperçu du texte")
+ok(Aura:IsShown(), "panneau ouvert : aperçu du halo")
+
+optionsWindow:Hide()   -- notre panneau reste « shown », comme dans le jeu
+ok(panel.shown == true, "le panneau lui-même n'a pas reçu Hide()")
+Text:Refresh()
+Aura:Refresh()
+equal(Text:IsShown(), false, "fenêtre Options fermée : texte retiré")
+equal(Aura:IsShown(), false, "fenêtre Options fermée : halo retiré")
+panel:Hide()
+
+--------------------------------------------------------------------------------
+
+suite("Son")
+equal(ns.PlayAlertSound("raidwarning"), true, "preset résolu et joué")
+equal(Mock.sounds[#Mock.sounds].kit, 1, "id SOUNDKIT correct")
+equal(ns.PlayAlertSound(nil), false, "son absent")
+equal(ns.PlayAlertSound(""), false, "son vide")
+
+-- PlaySound ne lève pas d'erreur sur un id inconnu : il renvoie false. C'est cette
+-- valeur, et non l'absence d'erreur, qui dit si quelque chose a été joué.
+Mock.soundWillPlay = false
+equal(ns.PlayAlertSound(123456), false, "id injouable : échec signalé, pas masqué")
+equal(ns.PlayAlertSound("raidwarning"), false, "preset muet : échec signalé après tous les candidats")
+Mock.soundWillPlay = true
+
+-- Le mock n'expose pas MURLOC_AGGRO, comme le client Forever : ce preset ne doit
+-- pas être proposé, sinon l'utilisateur choisit un son muet.
+local available = ns.AvailableSoundPresets()
+local offered = {}
+for _, name in ipairs(available) do offered[name] = true end
+ok(offered.raidwarning, "preset disponible proposé")
+equal(offered.murloc, nil, "preset non résolvable retiré de la liste")
+for _, name in ipairs(available) do
+    ok(ns.ResolveSoundKit(name) ~= nil, "preset proposé et résolvable : " .. name)
+end
+
+-- Le vrai symptôme n'était pas « muet » mais « joue le son d'un autre » : murloc
+-- se rabattait sur RAID_WARNING. Deux presets proposés ne doivent jamais aboutir
+-- au même son, sinon la liste ment sur ce qu'elle offre.
+local seen = {}
+for _, name in ipairs(available) do
+    local id = ns.ResolveSoundKit(name)
+    equal(seen[id], nil, "aucun autre preset ne joue déjà le son de " .. name)
+    seen[id] = name
+end
+equal(ns.ResolveSoundKit("murloc"), nil, "murloc ne se rabat pas sur une autre famille")
+
+local diagnostic = ns.SoundDiagnostic()
+ok(#diagnostic > 1, "/ka sounds liste l'état des presets")
+ok(diagnostic[1]:find("SOUNDKIT"), "/ka sounds annonce le nombre de constantes")
+ok(#ns.SoundDiagnostic("raid") > 1, "/ka sounds <motif> trouve les constantes correspondantes")
+equal(#ns.SoundDiagnostic("zzzz"), 1, "/ka sounds <motif> sans résultat le dit")
+
+--------------------------------------------------------------------------------
+
+suite("Langue")
+-- Anglais par défaut, quelle que soit la langue du client : c'est un choix explicite,
+-- pas le résultat du mock (qui renvoie justement enUS).
+equal(ns.DEFAULTS.locale, "enUS", "défaut = anglais, pas auto")
+equal(ns.db.locale, "enUS", "SavedVariables neuves : anglais")
+-- Le mock renvoie enUS : c'est la langue « client » vue par NS.ClientLocale().
+equal(ns.ClientLocale(), "enUS", "langue du client détectée")
+equal(ns.SetLocale("auto"), "enUS", "auto suit le client")
+equal(ns.L.CFG_LANGUAGE, ns.locales.enUS.CFG_LANGUAGE, "auto : libellés en anglais")
+
+local L = ns.L  -- référence capturée comme le font Core.lua et Config.lua
+equal(ns.SetLocale("frFR"), "frFR", "langue forcée appliquée")
+equal(L.CFG_LANGUAGE, ns.locales.frFR.CFG_LANGUAGE, "la table L est remplie sur place, pas remplacée")
+ok(L.CFG_LANGUAGE ~= ns.locales.enUS.CFG_LANGUAGE, "les libellés ont bien changé de langue")
+
+-- Une clé absente d'une traduction doit rester lisible plutôt que nil.
+ns.locales.frFR.CFG_LANGUAGE = nil
+ns.SetLocale("frFR")
+equal(L.CFG_LANGUAGE, ns.locales.enUS.CFG_LANGUAGE, "clé non traduite : repli sur enUS")
+
+equal(ns.SetLocale("xxXX"), "enUS", "code inconnu : repli sur enUS")
+equal(ns.SetLocale(nil), "enUS", "locale nil : traitée comme auto")
+
+for _, entry in ipairs(ns.LOCALE_ORDER) do
+    ok(ns.locales[entry.code] ~= nil, "locale proposée et chargée : " .. entry.code)
+end
+equal(ns.LocaleName("frFR"), "Français", "nom lisible d'une langue")
 
 --------------------------------------------------------------------------------
 

@@ -6,6 +6,27 @@ local L = NS.L
 local panel = CreateFrame("Frame", "KickAlertOptions")
 panel:Hide()
 
+-- Le canvas des options a une hauteur imposée par la fenêtre Blizzard, qui varie
+-- avec la résolution et l'échelle de l'UI : à 1080p le bas de la colonne gauche
+-- sortait du cadre. Tout est donc posé dans un ScrollFrame, et `content` remplace
+-- `panel` comme parent et comme ancre de tous les widgets.
+local scroll = CreateFrame("ScrollFrame", "KickAlertOptionsScroll", panel)
+scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, 0)
+scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -8, 0)
+
+local content = CreateFrame("Frame", "KickAlertOptionsContent", scroll)
+content:SetSize(1, 1)
+scroll:SetScrollChild(content)
+scroll:EnableMouseWheel(true)
+scroll:SetScript("OnMouseWheel", function(self, delta)
+    local range = self:GetVerticalScrollRange() or 0
+    local value = self:GetVerticalScroll() - delta * 40
+    if value < 0 then value = 0 elseif value > range then value = range end
+    self:SetVerticalScroll(value)
+end)
+-- Le child d'un ScrollFrame ne suit pas la largeur du parent tout seul.
+scroll:SetScript("OnSizeChanged", function(self, width) content:SetWidth(width) end)
+
 local refreshers = {}       -- widgets à resynchroniser depuis NS.db à l'ouverture
 local refreshing = false    -- évite que Refresh() déclenche les setters
 local widgetCount = 0
@@ -19,19 +40,28 @@ local function Column(x)
 end
 
 local function Place(col, frame, height, offsetX)
-    frame:SetPoint("TOPLEFT", panel, "TOPLEFT", col.x + (offsetX or 0), col.y)
+    frame:SetPoint("TOPLEFT", content, "TOPLEFT", col.x + (offsetX or 0), col.y)
     col.y = col.y - height
 end
 
 local function Title(col, text)
-    local fs = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    local fs = content:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     fs:SetText(text)
     col.y = col.y - 8
     Place(col, fs, 30)
 end
 
+local function Note(col, text)
+    local fs = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    fs:SetWidth(250)
+    fs:SetJustifyH("LEFT")
+    fs:SetText(text)
+    Place(col, fs, (fs:GetStringHeight() or 12) + 10)
+    return fs
+end
+
 local function Check(col, label, get, set)
-    local cb = CreateFrame("CheckButton", NextName(), panel, "UICheckButtonTemplate")
+    local cb = CreateFrame("CheckButton", NextName(), content, "UICheckButtonTemplate")
     local text = _G[cb:GetName() .. "Text"] or cb.Text or cb.text
     if not text then
         text = cb:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
@@ -46,7 +76,7 @@ local function Check(col, label, get, set)
 end
 
 local function Slider(col, label, minValue, maxValue, step, get, set)
-    local s = CreateFrame("Slider", NextName(), panel, "OptionsSliderTemplate")
+    local s = CreateFrame("Slider", NextName(), content, "OptionsSliderTemplate")
     s:SetWidth(240)
     s:SetMinMaxValues(minValue, maxValue)
     s:SetValueStep(step)
@@ -73,10 +103,10 @@ local function Slider(col, label, minValue, maxValue, step, get, set)
 end
 
 local function Edit(col, label, get, set)
-    local fs = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    local fs = content:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     fs:SetText(label)
     Place(col, fs, 18)
-    local eb = CreateFrame("EditBox", NextName(), panel, "InputBoxTemplate")
+    local eb = CreateFrame("EditBox", NextName(), content, "InputBoxTemplate")
     eb:SetSize(240, 24)
     eb:SetAutoFocus(false)
     eb:SetScript("OnEnterPressed", function(self)
@@ -93,7 +123,7 @@ local function Edit(col, label, get, set)
 end
 
 local function Color(col, label, color, onChange)
-    local b = CreateFrame("Button", NextName(), panel)
+    local b = CreateFrame("Button", NextName(), content)
     b:SetSize(240, 24)
     local swatch = b:CreateTexture(nil, "ARTWORK")
     swatch:SetSize(20, 20)
@@ -120,7 +150,7 @@ end
 
 -- Bouton cyclique : clic gauche = suivant, clic droit = précédent. options = { {name=, value=}, ... }.
 local function Cycle(col, label, options, get, set)
-    local b = CreateFrame("Button", NextName(), panel, "UIPanelButtonTemplate")
+    local b = CreateFrame("Button", NextName(), content, "UIPanelButtonTemplate")
     b:SetSize(240, 24)
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     local function indexOf(value)
@@ -147,7 +177,7 @@ local function Cycle(col, label, options, get, set)
 end
 
 local function Button(col, label, onClick)
-    local b = CreateFrame("Button", NextName(), panel, "UIPanelButtonTemplate")
+    local b = CreateFrame("Button", NextName(), content, "UIPanelButtonTemplate")
     b:SetSize(240, 24)
     b:SetText(label)
     b:SetScript("OnClick", onClick)
@@ -167,15 +197,32 @@ local function Build()
     local db = NS.db
     local left, right = Column(16), Column(330)
 
-    local header = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalHuge")
+    local header = content:CreateFontString(nil, "ARTWORK", "GameFontNormalHuge")
     header:SetText("KickAlert")
     Place(left, header, 26)
-    local sub = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    local sub = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     sub:SetText(L.CFG_SUBTITLE)
     Place(left, sub, 20)
     right.y = left.y
 
-    -- Colonne gauche : déclenchement + texte
+    -- Colonne gauche : langue, déclenchement, texte
+    Title(left, L.CFG_LANGUAGE)
+    Note(left, L.CFG_LANGUAGE_HINT)
+    local languages = { {
+        name = string.format(L.CFG_LANGUAGE_AUTO, NS.LocaleName(NS.ClientLocale())),
+        value = "auto",
+    } }
+    for _, entry in ipairs(NS.LOCALE_ORDER) do
+        languages[#languages + 1] = { name = entry.name, value = entry.code }
+    end
+    Cycle(left, L.CFG_LANGUAGE, languages, function() return db.locale or "auto" end,
+        function(v) db.locale = v; NS.SetLocale(v) end)
+    -- Les libellés déjà posés dans les widgets ne se retraduisent pas tout seuls :
+    -- le rechargement de l'interface est ce qui rend le changement visible partout.
+    Button(left, L.CFG_LANGUAGE_RELOAD, function()
+        if C_UI and C_UI.Reload then C_UI.Reload() elseif ReloadUI then ReloadUI() end
+    end)
+
     Title(left, L.CFG_TRIGGER)
     if NS.has.focus then
         Check(left, L.CFG_WATCH_FOCUS, function() return db.watchFocus end,
@@ -234,8 +281,10 @@ local function Build()
     Title(right, L.CFG_SOUND)
     Check(right, L.CFG_SOUND_ENABLE, function() return db.sound.enabled end,
         function(v) db.sound.enabled = v end)
+    -- Seuls les presets que ce client sait réellement jouer : les constantes
+    -- SOUNDKIT diffèrent d'un flavor à l'autre, en proposer un muet est un piège.
     local presets = {}
-    for _, name in ipairs(NS.SOUND_PRESET_ORDER) do presets[#presets + 1] = { name = name, value = name } end
+    for _, name in ipairs(NS.AvailableSoundPresets()) do presets[#presets + 1] = { name = name, value = name } end
     Cycle(right, L.CFG_SOUND, presets, function() return db.sound.sound end,
         function(v) db.sound.sound = v; NS.Sound:Play(true) end)
     Edit(right, L.CFG_SOUND_CUSTOM,
@@ -244,11 +293,19 @@ local function Build()
             if v ~= "" then db.sound.sound = tonumber(v) or v end
             NS.Sound:Play(true)
         end)
-    Button(right, L.CFG_SOUND_TEST, function() NS.Sound:Play(true) end)
+    Button(right, L.CFG_SOUND_TEST, function()
+        -- Un son injouable échouait en silence : on le dit plutôt que de laisser
+        -- croire à un problème de volume.
+        if not NS.Sound:Play(true) then NS.Print(L.MSG_SOUND_FAILED) end
+    end)
 
     Title(right, L.CFG_TEST)
     Button(right, L.CFG_TEST_PREVIEW, function() NS:Test() end)
     Button(right, L.CFG_TEST_MOVE, function() NS:SetUnlocked(not NS.unlocked) end)
+
+    -- `y` descend en négatif : la colonne la plus longue donne la hauteur à scroller.
+    local lowest = left.y < right.y and left.y or right.y
+    content:SetHeight(-lowest + 16)
 end
 
 panel:SetScript("OnShow", function()

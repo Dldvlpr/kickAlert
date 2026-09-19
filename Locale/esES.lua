@@ -1,7 +1,8 @@
 -- Locale/esES.lua
-if GetLocale() ~= "esES" then return end
 local _, NS = ...
-local L = NS.L
+NS.locales = NS.locales or {}
+local L = {}
+NS.locales.esES = L
 L.MSG_UNLOCKED = "Modo mover activado. /ka lock para bloquear."
 L.MSG_LOCKED = "Posiciones bloqueadas."
 L.MSG_RESET = "Posiciones reiniciadas."
@@ -53,3 +54,8 @@ L.CFG_SOUND_TEST = "Probar sonido"
 L.CFG_TEST = "Prueba"
 L.CFG_TEST_PREVIEW = "Previsualizar las 3 alertas (3 s)"
 L.CFG_TEST_MOVE = "Mover / bloquear el texto"
+L.CFG_LANGUAGE = "Idioma"
+L.CFG_LANGUAGE_AUTO = "Auto (cliente: %s)"
+L.CFG_LANGUAGE_HINT = "KickAlert está en inglés por defecto. Elige tu idioma aquí, o «Auto» para seguir el de tu cliente."
+L.CFG_LANGUAGE_RELOAD = "Aplicar (recarga la interfaz)"
+L.MSG_SOUND_FAILED = "No se pudo reproducir este sonido en este cliente. Prueba otro en las opciones."

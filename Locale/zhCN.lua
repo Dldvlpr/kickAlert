@@ -1,7 +1,8 @@
 -- Locale/zhCN.lua
-if GetLocale() ~= "zhCN" then return end
 local _, NS = ...
-local L = NS.L
+NS.locales = NS.locales or {}
+local L = {}
+NS.locales.zhCN = L
 L.MSG_UNLOCKED = "移动模式已开启。/ka lock 锁定。"
 L.MSG_LOCKED = "位置已锁定。"
 L.MSG_RESET = "位置已重置。"
@@ -53,3 +54,8 @@ L.CFG_SOUND_TEST = "测试声音"
 L.CFG_TEST = "测试"
 L.CFG_TEST_PREVIEW = "预览 3 种提醒（3 秒）"
 L.CFG_TEST_MOVE = "移动 / 锁定文字"
+L.CFG_LANGUAGE = "语言"
+L.CFG_LANGUAGE_AUTO = "自动（客户端：%s）"
+L.CFG_LANGUAGE_HINT = "KickAlert 默认使用英文。在此选择你的语言，或选择“自动”以跟随客户端。"
+L.CFG_LANGUAGE_RELOAD = "应用（重新加载界面）"
+L.MSG_SOUND_FAILED = "此客户端无法播放该音效。请在设置中换一个。"

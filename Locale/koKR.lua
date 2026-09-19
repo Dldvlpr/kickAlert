@@ -1,7 +1,8 @@
 -- Locale/koKR.lua
-if GetLocale() ~= "koKR" then return end
 local _, NS = ...
-local L = NS.L
+NS.locales = NS.locales or {}
+local L = {}
+NS.locales.koKR = L
 L.MSG_UNLOCKED = "이동 모드 켜짐. /ka lock으로 잠금."
 L.MSG_LOCKED = "위치가 잠겼습니다."
 L.MSG_RESET = "위치가 초기화되었습니다."
@@ -53,3 +54,8 @@ L.CFG_SOUND_TEST = "소리 테스트"
 L.CFG_TEST = "테스트"
 L.CFG_TEST_PREVIEW = "3가지 알림 미리보기 (3초)"
 L.CFG_TEST_MOVE = "텍스트 이동 / 잠금"
+L.CFG_LANGUAGE = "언어"
+L.CFG_LANGUAGE_AUTO = "자동 (클라이언트: %s)"
+L.CFG_LANGUAGE_HINT = "KickAlert는 기본적으로 영어입니다. 여기서 언어를 선택하거나 '자동'으로 클라이언트를 따르세요."
+L.CFG_LANGUAGE_RELOAD = "적용 (인터페이스 다시 불러오기)"
+L.MSG_SOUND_FAILED = "이 클라이언트에서 해당 소리를 재생할 수 없습니다. 설정에서 다른 소리를 선택하세요."

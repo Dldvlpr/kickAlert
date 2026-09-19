@@ -36,7 +36,9 @@ Sur les clients où `UnitCastingInfo` ne répond rien sur une unité hostile, le
 ## Installation
 
 Copier le dossier `KickAlert` dans `World of Warcraft/_<version>_/Interface/AddOns/`.
-Le client charge le `.toc` de sa version (`KickAlert_Mainline.toc`, `KickAlert_Vanilla.toc`, ...).
+Un seul `KickAlert.toc`, sans suffixe de version : il est chargé par tous les clients,
+et sa ligne `## Interface` liste les versions supportées (Classic Era, Anniversary,
+Forever, TBC, Wrath, Cata, Mists, retail).
 
 ## Commandes
 
@@ -48,8 +50,25 @@ Le client charge le `.toc` de sa version (`KickAlert_Mainline.toc`, `KickAlert_V
 | `/ka reset` | Remet le texte à sa position par défaut |
 | `/ka spell <id>` / `/ka spell auto` | Force le sort d'interruption suivi / revient à la détection |
 | `/ka status` | Interrupt détecté, disponibilité, options actives |
+| `/ka sounds` | État de chaque son proposé sur ce client |
+| `/ka sounds <motif>` | Cherche une constante SOUNDKIT, ex. `/ka sounds warning` |
 
 Le texte et le halo restent affichés tant que le panneau d'options est ouvert : c'est l'aperçu.
+
+## Langue
+
+L'addon est en anglais à l'installation. Le panneau d'options propose les 11 langues
+du client (plus « Auto » pour suivre celle du jeu) ; le changement s'applique au
+rechargement de l'interface, via le bouton prévu à cet effet.
+
+Une clé non traduite retombe sur l'anglais plutôt que de disparaître.
+
+## Sons
+
+Les constantes `SOUNDKIT` ne sont pas les mêmes d'un client à l'autre. Seuls les sons
+que le client sait réellement jouer sont proposés — `/ka sounds` montre lesquels. Le
+champ libre du panneau accepte en plus n'importe quel id `SOUNDKIT` ou chemin de
+fichier (`Interface\AddOns\MonAddon\kick.ogg`).
 
 ## Fichiers
 
@@ -63,7 +82,6 @@ Le texte et le halo restent affichés tant que le panneau d'options est ouvert :
 - `Nameplates.lua` : "KICK" au-dessus de la nameplate de toute cible hostile en incantation
   interruptible, sans ciblage.
 - `Config.lua` : panneau d'options, widgets Blizzard uniquement.
-- `tools/gen-toc.sh` : régénère les 6 `.toc` (`--check` pour vérifier).
 - `tests/run.sh` : syntaxe + suite headless sur 4 configurations de client (`lua5.1` requis).
 
 ## Vérification

@@ -1,7 +1,8 @@
 -- Locale/itIT.lua
-if GetLocale() ~= "itIT" then return end
 local _, NS = ...
-local L = NS.L
+NS.locales = NS.locales or {}
+local L = {}
+NS.locales.itIT = L
 L.MSG_UNLOCKED = "Modalità spostamento attiva. /ka lock per bloccare."
 L.MSG_LOCKED = "Posizioni bloccate."
 L.MSG_RESET = "Posizioni ripristinate."
@@ -53,3 +54,8 @@ L.CFG_SOUND_TEST = "Prova suono"
 L.CFG_TEST = "Test"
 L.CFG_TEST_PREVIEW = "Anteprima dei 3 avvisi (3 s)"
 L.CFG_TEST_MOVE = "Sposta / blocca il testo"
+L.CFG_LANGUAGE = "Lingua"
+L.CFG_LANGUAGE_AUTO = "Auto (client: %s)"
+L.CFG_LANGUAGE_HINT = "KickAlert è in inglese per impostazione predefinita. Scegli qui la tua lingua, o «Auto» per seguire quella del client."
+L.CFG_LANGUAGE_RELOAD = "Applica (ricarica l'interfaccia)"
+L.MSG_SOUND_FAILED = "Impossibile riprodurre questo suono su questo client. Provane un altro nelle opzioni."

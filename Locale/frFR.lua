@@ -1,7 +1,8 @@
 -- Locale/frFR.lua
-if GetLocale() ~= "frFR" then return end
 local _, NS = ...
-local L = NS.L
+NS.locales = NS.locales or {}
+local L = {}
+NS.locales.frFR = L
 L.MSG_UNLOCKED = "Mode déplacement activé. /ka lock pour verrouiller."
 L.MSG_LOCKED = "Positions verrouillées."
 L.MSG_RESET = "Positions réinitialisées."
@@ -53,3 +54,8 @@ L.CFG_SOUND_TEST = "Tester le son"
 L.CFG_TEST = "Test"
 L.CFG_TEST_PREVIEW = "Prévisualiser les 3 alertes (3 s)"
 L.CFG_TEST_MOVE = "Déplacer / verrouiller le texte"
+L.CFG_LANGUAGE = "Langue"
+L.CFG_LANGUAGE_AUTO = "Auto (client : %s)"
+L.CFG_LANGUAGE_HINT = "KickAlert est en anglais par défaut. Choisis ta langue ici, ou « Auto » pour suivre celle de ton client."
+L.CFG_LANGUAGE_RELOAD = "Appliquer (recharge l'interface)"
+L.MSG_SOUND_FAILED = "Ce son n'a pas pu être joué sur ce client. Essaie-en un autre dans les options."

@@ -1,7 +1,9 @@
--- Locale/enUS.lua : base de repli, toujours chargée.
--- Les autres fichiers de Locale/ surchargent ces clés quand GetLocale() correspond.
+-- Locale/enUS.lua : base de repli. Toutes les locales sont chargées et enregistrées
+-- dans NS.locales ; NS.SetLocale (Locale/Locale.lua) choisit celle qui s'applique et
+-- retombe sur enUS pour toute clé manquante.
 local _, NS = ...
-NS.L = {
+NS.locales = NS.locales or {}
+NS.locales.enUS = {
     MSG_UNLOCKED = "Move mode on. /ka lock to lock.",
     MSG_LOCKED = "Positions locked.",
     MSG_RESET = "Positions reset.",
@@ -53,4 +55,9 @@ NS.L = {
     CFG_TEST = "Test",
     CFG_TEST_PREVIEW = "Preview the 3 alerts (3 s)",
     CFG_TEST_MOVE = "Move / lock the text",
+    CFG_LANGUAGE = "Language",
+    CFG_LANGUAGE_AUTO = "Auto (client: %s)",
+    CFG_LANGUAGE_HINT = "KickAlert is in English by default. Pick your language here, or \"Auto\" to follow your game client.",
+    CFG_LANGUAGE_RELOAD = "Apply (reloads the interface)",
+    MSG_SOUND_FAILED = "Sound could not be played on this client. Try another one in the options.",
 }

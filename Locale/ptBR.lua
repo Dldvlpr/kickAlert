@@ -1,7 +1,8 @@
 -- Locale/ptBR.lua
-if GetLocale() ~= "ptBR" then return end
 local _, NS = ...
-local L = NS.L
+NS.locales = NS.locales or {}
+local L = {}
+NS.locales.ptBR = L
 L.MSG_UNLOCKED = "Modo mover ativado. /ka lock para travar."
 L.MSG_LOCKED = "Posições travadas."
 L.MSG_RESET = "Posições redefinidas."
@@ -53,3 +54,8 @@ L.CFG_SOUND_TEST = "Testar som"
 L.CFG_TEST = "Teste"
 L.CFG_TEST_PREVIEW = "Prévia dos 3 alertas (3 s)"
 L.CFG_TEST_MOVE = "Mover / travar o texto"
+L.CFG_LANGUAGE = "Idioma"
+L.CFG_LANGUAGE_AUTO = "Auto (cliente: %s)"
+L.CFG_LANGUAGE_HINT = "O KickAlert está em inglês por padrão. Escolha seu idioma aqui, ou \"Auto\" para seguir o do seu cliente."
+L.CFG_LANGUAGE_RELOAD = "Aplicar (recarrega a interface)"
+L.MSG_SOUND_FAILED = "Não foi possível reproduzir este som neste cliente. Tente outro nas opções."

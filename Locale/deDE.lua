@@ -1,7 +1,8 @@
 -- Locale/deDE.lua
-if GetLocale() ~= "deDE" then return end
 local _, NS = ...
-local L = NS.L
+NS.locales = NS.locales or {}
+local L = {}
+NS.locales.deDE = L
 L.MSG_UNLOCKED = "Verschiebemodus an. /ka lock zum Sperren."
 L.MSG_LOCKED = "Positionen gesperrt."
 L.MSG_RESET = "Positionen zurückgesetzt."
@@ -53,3 +54,8 @@ L.CFG_SOUND_TEST = "Ton testen"
 L.CFG_TEST = "Test"
 L.CFG_TEST_PREVIEW = "Vorschau der 3 Warnungen (3 s)"
 L.CFG_TEST_MOVE = "Text verschieben / sperren"
+L.CFG_LANGUAGE = "Sprache"
+L.CFG_LANGUAGE_AUTO = "Auto (Client: %s)"
+L.CFG_LANGUAGE_HINT = "KickAlert ist standardmäßig auf Englisch. Wähle hier deine Sprache oder „Auto“, um dem Client zu folgen."
+L.CFG_LANGUAGE_RELOAD = "Übernehmen (lädt die Oberfläche neu)"
+L.MSG_SOUND_FAILED = "Dieser Ton konnte auf diesem Client nicht abgespielt werden. Probiere in den Optionen einen anderen."

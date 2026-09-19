@@ -1,7 +1,8 @@
 -- Locale/ruRU.lua
-if GetLocale() ~= "ruRU" then return end
 local _, NS = ...
-local L = NS.L
+NS.locales = NS.locales or {}
+local L = {}
+NS.locales.ruRU = L
 L.MSG_UNLOCKED = "Режим перемещения включён. /ka lock, чтобы закрепить."
 L.MSG_LOCKED = "Положения закреплены."
 L.MSG_RESET = "Положения сброшены."
@@ -53,3 +54,8 @@ L.CFG_SOUND_TEST = "Проверить звук"
 L.CFG_TEST = "Тест"
 L.CFG_TEST_PREVIEW = "Предпросмотр 3 оповещений (3 с)"
 L.CFG_TEST_MOVE = "Переместить / закрепить текст"
+L.CFG_LANGUAGE = "Язык"
+L.CFG_LANGUAGE_AUTO = "Авто (клиент: %s)"
+L.CFG_LANGUAGE_HINT = "KickAlert по умолчанию на английском. Выберите здесь свой язык или «Авто», чтобы следовать языку клиента."
+L.CFG_LANGUAGE_RELOAD = "Применить (перезагрузит интерфейс)"
+L.MSG_SOUND_FAILED = "Этот звук не удалось воспроизвести на данном клиенте. Попробуйте другой в настройках."

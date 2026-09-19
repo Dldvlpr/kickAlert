@@ -1,7 +1,8 @@
 -- Locale/zhTW.lua
-if GetLocale() ~= "zhTW" then return end
 local _, NS = ...
-local L = NS.L
+NS.locales = NS.locales or {}
+local L = {}
+NS.locales.zhTW = L
 L.MSG_UNLOCKED = "移動模式已開啟。/ka lock 鎖定。"
 L.MSG_LOCKED = "位置已鎖定。"
 L.MSG_RESET = "位置已重置。"
@@ -53,3 +54,8 @@ L.CFG_SOUND_TEST = "測試聲音"
 L.CFG_TEST = "測試"
 L.CFG_TEST_PREVIEW = "預覽 3 種提醒（3 秒）"
 L.CFG_TEST_MOVE = "移動 / 鎖定文字"
+L.CFG_LANGUAGE = "語言"
+L.CFG_LANGUAGE_AUTO = "自動（客戶端：%s）"
+L.CFG_LANGUAGE_HINT = "KickAlert 預設使用英文。在此選擇你的語言，或選擇「自動」以跟隨客戶端。"
+L.CFG_LANGUAGE_RELOAD = "套用（重新載入介面）"
+L.MSG_SOUND_FAILED = "此客戶端無法播放該音效。請在設定中換一個。"

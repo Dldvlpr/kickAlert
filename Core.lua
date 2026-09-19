@@ -5,6 +5,7 @@ local L = NS.L
 
 NS.DEFAULTS = {
     version = 1,
+    locale        = "enUS",  -- anglais par défaut ; "auto" suit le client, sinon un code ("frFR", ...)
     -- Déclenchement (mêmes réglages que le module InterruptAlert de MyBossSuite)
     watchFocus    = true,    -- surveille aussi le focus
     onlyWhenReady = true,    -- n'alerte que si ton kick est disponible
@@ -151,6 +152,9 @@ loader:SetScript("OnEvent", function(self, _, name)
     KickAlertDB = KickAlertDB or {}
     CopyDefaults(NS.DEFAULTS, KickAlertDB)
     NS.db = KickAlertDB
+    -- La langue choisie n'est connue qu'ici : Locale/Locale.lua a démarré sur
+    -- celle du client, on réapplique le réglage sauvegardé avant de construire l'UI.
+    NS.SetLocale(NS.db.locale)
     NS:Fire("DB_READY")
 end)
 
@@ -179,6 +183,11 @@ SlashCmdList.KICKALERT = function(msg)
             or L.MSG_SPELL_AUTO)
     elseif command == "status" then
         for _, line in ipairs(NS.Detector:StatusLines()) do NS.Print(line) end
+    elseif command == "sounds" then
+        -- Diagnostic (volontairement non traduit) : les constantes SOUNDKIT
+        -- disponibles varient par flavor, c'est ce qui décide des presets offerts.
+        -- /ka sounds <motif> cherche un nom de constante, ex. /ka sounds murloc
+        for _, line in ipairs(NS.SoundDiagnostic(argument)) do NS.Print(line) end
     else
         NS.OpenOptions()
     end
