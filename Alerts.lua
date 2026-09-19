@@ -7,8 +7,11 @@ local _, NS = ...
 local sin, pi = math.sin, math.pi
 
 -- Aperçu : visible en mode unlock et pendant que le panneau d'options est ouvert.
+-- IsVisible() et non IsShown() : fermer la fenêtre Options masque le parent sans
+-- jamais appeler Hide() sur notre panneau, donc IsShown() y resterait vrai et
+-- l'aperçu (texte + halo) ne s'éteindrait plus.
 function NS.PreviewActive()
-    return NS.unlocked or (NS.optionsPanel ~= nil and NS.optionsPanel:IsShown()) or false
+    return NS.unlocked or (NS.optionsPanel ~= nil and NS.optionsPanel:IsVisible()) or false
 end
 
 ---------------------------------------------------------------------------

@@ -257,14 +257,27 @@ local PlaySound     = _G.PlaySound
 local PlaySoundFile = _G.PlaySoundFile
 
 -- Chaîne de repli : le premier nom de SOUNDKIT qui existe sur ce client gagne.
+-- Un preset ne liste que des variantes du MÊME son : les noms de constantes
+-- changent d'un flavor à l'autre, pas le son attendu. Surtout pas de repli vers
+-- une autre famille — « murloc » se rabattait sur RAID_WARNING et trois entrées
+-- de la liste jouaient le même son sans que rien ne le dise.
+-- Un preset qu'aucun candidat ne résout est retiré de la liste par
+-- NS.AvailableSoundPresets() plutôt que joué de travers.
 NS.SOUND_PRESETS = {
     raidwarning = { "RAID_WARNING" },
-    readycheck  = { "READY_CHECK", "READY_CHECK_WARNING", "RAID_WARNING" },
-    alarm       = { "UI_RAID_BOSS_WHISPER_WARNING", "RAID_BOSS_EMOTE_WARNING", "RAID_WARNING" },
+    readycheck  = { "READY_CHECK", "READY_CHECK_WARNING" },
+    alarm       = { "UI_RAID_BOSS_WHISPER_WARNING" },
+    bossemote   = { "RAID_BOSS_EMOTE_WARNING" },
+    alarmclock  = { "ALARM_CLOCK_WARNING_1", "ALARM_CLOCK_WARNING_2", "ALARM_CLOCK_WARNING_3" },
+    invasion    = { "UI_GARRISON_TOAST_INVASION_ALERT" },
+    gmchat      = { "GM_CHAT_WARNING" },
     ping        = { "IG_MAINMENU_OPTION_CHECKBOX_ON", "IG_MAINMENU_OPEN" },
-    murloc      = { "MURLOC_AGGRO", "RAID_WARNING" },
+    murloc      = { "MURLOC_AGGRO", "MURLOC_AGGRO_OLD" },
 }
-NS.SOUND_PRESET_ORDER = { "alarm", "raidwarning", "readycheck", "ping", "murloc" }
+NS.SOUND_PRESET_ORDER = {
+    "alarm", "raidwarning", "readycheck", "bossemote",
+    "alarmclock", "invasion", "gmchat", "ping", "murloc",
+}
 
 function NS.ResolveSoundKit(name)
     local kit = _G.SOUNDKIT
@@ -286,28 +299,104 @@ end
 --   nom de preset -> NS.SOUND_PRESETS
 --   nom de kit    -> SOUNDKIT[nom]
 -- Retourne false si rien n'a pu être joué.
+--- pcall ne dit que « pas d'erreur » : PlaySound renvoie en plus willPlay, faux
+-- quand l'id n'existe pas sur ce client. Sans le lire, un son muet passait pour
+-- un succès et aucun repli n'était tenté.
+local function Emit(fn, value, channel)
+    if not fn then return false end
+    local ok, willPlay = pcall(fn, value, channel)
+    if not ok then return false end
+    -- Les clients les plus anciens ne renvoient rien : on ne peut pas conclure à un échec.
+    return willPlay ~= false
+end
+
 function NS.PlayAlertSound(sound, channel)
     if not sound then return false end
     channel = channel or "Master"
 
     if type(sound) == "number" then
-        if not PlaySound then return false end
-        return pcall(PlaySound, sound, channel) and true or false
+        return Emit(PlaySound, sound, channel)
     end
     if type(sound) ~= "string" or sound == "" then return false end
 
     if sound:find("[\\/]") or sound:lower():find("%.%a%a%a?$") then
-        if not PlaySoundFile then return false end
-        return pcall(PlaySoundFile, sound, channel) and true or false
+        return Emit(PlaySoundFile, sound, channel)
     end
 
-    local kit = NS.ResolveSoundKit(sound)
-    if kit and PlaySound then
-        return pcall(PlaySound, kit, channel) and true or false
+    -- Preset : on essaie chaque candidat jusqu'à ce que l'un se joue réellement.
+    -- Les constantes SOUNDKIT ne sont pas les mêmes d'un flavor à l'autre.
+    local candidates = NS.SOUND_PRESETS[sound]
+    if candidates then
+        local kits = _G.SOUNDKIT
+        if kits then
+            for i = 1, #candidates do
+                local id = kits[candidates[i]]
+                if id and Emit(PlaySound, id, channel) then return true end
+            end
+        end
+    else
+        local kit = NS.ResolveSoundKit(sound)
+        if kit and Emit(PlaySound, kit, channel) then return true end
     end
+
     -- Tout premiers clients : PlaySound prenait un nom de son, pas un id.
-    if PlaySound then return pcall(PlaySound, sound, channel) and true or false end
-    return false
+    return Emit(PlaySound, sound, channel)
+end
+
+--- Diagnostic des sons. Sans argument : état de chaque preset. Avec un motif :
+-- les constantes SOUNDKIT dont le nom le contient. Sert à savoir ce qu'un client
+-- expose vraiment, les noms n'étant pas les mêmes d'un flavor à l'autre.
+function NS.SoundDiagnostic(pattern)
+    local kits = _G.SOUNDKIT
+    local lines = {}
+    if not kits then
+        lines[1] = "SOUNDKIT absent sur ce client : seuls les ids numériques et les fichiers marchent."
+        return lines
+    end
+
+    if pattern and pattern ~= "" then
+        local found = {}
+        for name, id in pairs(kits) do
+            if type(name) == "string" and name:lower():find(pattern:lower(), 1, true) then
+                found[#found + 1] = name .. " = " .. tostring(id)
+            end
+        end
+        table.sort(found)
+        if #found == 0 then
+            lines[1] = "aucune constante SOUNDKIT ne contient : " .. pattern
+        else
+            lines[1] = #found .. " constante(s) pour : " .. pattern
+            for i = 1, #found do lines[#lines + 1] = "  " .. found[i] end
+        end
+        return lines
+    end
+
+    local total = 0
+    for _ in pairs(kits) do total = total + 1 end
+    lines[1] = "SOUNDKIT : " .. total .. " constantes"
+    for _, name in ipairs(NS.SOUND_PRESET_ORDER) do
+        local id = NS.ResolveSoundKit(name)
+        lines[#lines + 1] = string.format("  %-12s %s", name, id and ("ok (id " .. id .. ")") or "indisponible")
+    end
+    return lines
+end
+
+--- Presets réellement jouables sur ce client, dans l'ordre d'affichage.
+-- Sans SOUNDKIT (clients les plus anciens) rien n'est résolvable : on renvoie
+-- la liste entière plutôt que de n'offrir aucun choix.
+function NS.AvailableSoundPresets()
+    local available = {}
+    if not _G.SOUNDKIT then
+        for i = 1, #NS.SOUND_PRESET_ORDER do available[i] = NS.SOUND_PRESET_ORDER[i] end
+        return available
+    end
+    for _, name in ipairs(NS.SOUND_PRESET_ORDER) do
+        if NS.ResolveSoundKit(name) then available[#available + 1] = name end
+    end
+    if #available == 0 then
+        for i = 1, #NS.SOUND_PRESET_ORDER do available[i] = NS.SOUND_PRESET_ORDER[i] end
+    end
+    return available
 end
 
 --------------------------------------------------------------------------------
