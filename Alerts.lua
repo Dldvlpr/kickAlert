@@ -67,6 +67,7 @@ function Text:Refresh()
     if (NS.unlocked or NS.db.text.enabled) and (NS.PreviewActive() or self.active) then
         self:Apply()
         self:Show()
+        NS.WatchPreview()
     else
         self:Hide()
     end
@@ -139,6 +140,7 @@ function Aura:Refresh()
     if NS.db.aura.enabled and (NS.PreviewActive() or self.active) then
         self:Apply()
         self:Show()
+        NS.WatchPreview()
     else
         self:Hide()
     end
@@ -148,6 +150,36 @@ NS:On("DB_READY", function() Aura:Apply() end)
 NS:On("CAST_START", function() Aura.active = true; Aura:Refresh() end)
 NS:On("CAST_STOP", function() Aura.active = false; Aura:Refresh() end)
 NS:On("UNLOCK", function() Aura:Refresh() end)
+
+---------------------------------------------------------------------------
+-- Fin de l'aperçu
+---------------------------------------------------------------------------
+-- Masquer la fenêtre Options ne déclenche pas OnHide sur notre panneau : WoW ne
+-- propage pas OnHide aux enfants. Plus rien ne réévaluait donc PreviewActive() et
+-- l'aperçu restait à l'écran une fois la fenêtre fermée. Ce veilleur ne tourne que
+-- pendant l'aperçu et s'arrête de lui-même.
+local previewWatcher = CreateFrame("Frame")
+previewWatcher:Hide()
+local sincePoll = 0
+previewWatcher:SetScript("OnUpdate", function(self, elapsed)
+    sincePoll = sincePoll + (elapsed or 0)
+    if sincePoll < 0.2 then return end
+    sincePoll = 0
+    if not NS.PreviewActive() then
+        self:Hide()
+        Text:Refresh()
+        Aura:Refresh()
+    end
+end)
+
+--- Surveille la fin de l'aperçu. Appelé par les Refresh qui viennent d'afficher
+-- quelque chose : sans alerte réelle en cours, seul l'aperçu les maintient.
+function NS.WatchPreview()
+    if NS.PreviewActive() then
+        sincePoll = 0
+        previewWatcher:Show()
+    end
+end
 
 ---------------------------------------------------------------------------
 -- Son

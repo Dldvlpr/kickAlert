@@ -385,6 +385,22 @@ Text:Refresh()
 Aura:Refresh()
 equal(Text:IsShown(), false, "fenêtre Options fermée : texte retiré")
 equal(Aura:IsShown(), false, "fenêtre Options fermée : halo retiré")
+
+-- Cas réel : /ka test pendant que le panneau est ouvert, puis fermeture APRÈS la
+-- fin des 3 s. WoW ne propage pas OnHide aux enfants, donc rien ne réévalue
+-- l'aperçu — seul le veilleur peut éteindre le texte resté à l'écran.
+optionsWindow:Show()
+panel:Show()
+ns:Fire("CAST_START", "test", "Preview", 0)
+ok(Text:IsShown(), "aperçu + test : texte affiché")
+ns:Fire("CAST_STOP")
+ok(Text:IsShown(), "test fini, panneau encore ouvert : l'aperçu prend le relais")
+
+optionsWindow:Hide()   -- aucun OnHide, aucun event : le veilleur est seul juge
+ok(Text:IsShown(), "juste après fermeture, avant le tick du veilleur")
+Mock.Advance(0.25)
+equal(Text:IsShown(), false, "le veilleur retire le texte après fermeture")
+equal(Aura:IsShown(), false, "le veilleur retire le halo après fermeture")
 panel:Hide()
 
 --------------------------------------------------------------------------------
