@@ -2,7 +2,7 @@
 # Vérification hors du jeu :
 #   1. syntaxe de tous les fichiers Lua
 #   2. suite headless sur 4 configurations de client
-#   3. .toc à jour vis-à-vis de tools/gen-toc.sh
+#   3. KickAlert.toc liste exactement les .lua du dépôt (hors tests/)
 #
 # Prérequis : lua5.1 (ou lua) dans le PATH. Surcharge : LUA=... tests/run.sh
 set -uo pipefail
@@ -49,10 +49,14 @@ done
 
 echo
 echo "== .toc"
-if tools/gen-toc.sh --check >/dev/null 2>&1; then
+listed=$(grep '\.lua[[:space:]]*$' KickAlert.toc | tr -d '\r' | tr '\\' '/' | sed 's/[[:space:]]*$//' | sort)
+shipped=$(find . -name '*.lua' | sed 's#^\./##' | grep -v '^tests/' | sort)
+if [ "$listed" = "$shipped" ]; then
     echo "  ok"
 else
-    echo "  FAIL — lance tools/gen-toc.sh"
+    echo "  FAIL — KickAlert.toc et les fichiers du dépôt divergent :"
+    diff <(printf '%s\n' "$listed") <(printf '%s\n' "$shipped") \
+        | grep '^[<>]' | sed 's/^</        seulement dans le .toc :/;s/^>/        non listé dans le .toc :/'
     status=1
 fi
 

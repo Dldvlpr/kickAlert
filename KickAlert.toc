@@ -1,0 +1,36 @@
+## Interface: 11509, 11600, 16001, 20506, 30405, 40402, 50504, 120100
+## Title: KickAlert
+## Notes: Alerte texte, halo d'écran et son quand la cible lance un sort interruptible et que ton kick est disponible. Gratuit, code source ouvert.
+## Version: 1.0.0
+## SavedVariables: KickAlertDB
+## OptionalDeps: LibSharedMedia-3.0
+## X-License: GPL-3.0-or-later
+
+# Un seul .toc sans suffixe : il est chargé par tous les clients, et la liste
+# « ## Interface » ci-dessus déclare les versions supportées. Dans l'ordre :
+#   11509 Classic Era · 11600 Anniversary · 16001 Forever (nom de code Camelot)
+#   20506 TBC · 30405 Wrath · 40402 Cata · 50504 Mists · 120100 retail
+# À mettre à jour à chaque patch client. Un numéro périmé n'empêche pas le
+# chargement si « Charger les addons obsolètes » est coché, mais affiche l'addon en rouge.
+#
+# L'ordre de load est le seul mécanisme de dépendance :
+#   Locale (traductions puis Locale.lua) -> Compat -> Core -> Alerts -> Detector -> Nameplates -> Config
+
+Locale\enUS.lua
+Locale\frFR.lua
+Locale\deDE.lua
+Locale\esES.lua
+Locale\esMX.lua
+Locale\itIT.lua
+Locale\ptBR.lua
+Locale\ruRU.lua
+Locale\koKR.lua
+Locale\zhCN.lua
+Locale\zhTW.lua
+Locale\Locale.lua
+Compat.lua
+Core.lua
+Alerts.lua
+Detector.lua
+Nameplates.lua
+Config.lua
