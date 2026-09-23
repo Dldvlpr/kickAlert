@@ -48,6 +48,7 @@ Forever, TBC, Wrath, Cata, Mists, retail).
 | `/ka unlock` / `/ka lock` | Affiche le texte en permanence et le rend déplaçable / verrouille |
 | `/ka test` | Joue les 3 alertes pendant 3 secondes |
 | `/ka reset` | Remet le texte à sa position par défaut |
+| `/ka wipe` | Remet tous les réglages par défaut (SavedVariables et miroir CVar), puis recharge l'interface |
 | `/ka spell <id>` / `/ka spell auto` | Force le sort d'interruption suivi / revient à la détection |
 | `/ka status` | Interrupt détecté, disponibilité, options actives |
 | `/ka sounds` | État de chaque son proposé sur ce client |
@@ -75,6 +76,7 @@ fichier (`Interface\AddOns\MonAddon\kick.ogg`).
 - `Compat.lua` : toutes les API qui diffèrent entre versions (sorts, incantations, portée, sons,
   timers, dégradés, color picker, panneau d'options). Copie de la partie utile de
   `MyBossSuite/Core/Compat.lua`.
+- `Mirror.lua` : doubles des réglages pour WoW Forever 1.60, qui écrit les SavedVariables de compte mais ne les relit pas. La table est rangée dans `g_addonCategoriesCollapsed` (sauvegarde de Blizzard_AddOnList, `WTF/SavedVariables/`, relue au démarrage) et recopiée dans des CVars `KickAlertMirror1..8` (survivent au `/reload`). Si la sauvegarde revient vide, ces doubles la remplacent. Conséquence : supprimer `KickAlert.lua` dans `WTF` ne remet plus à zéro ; utiliser `/ka wipe`.
 - `Core.lua` : SavedVariables (`KickAlertDB`), bus interne, mixin de positionnement, slash.
 - `Alerts.lua` : les trois alertes.
 - `Detector.lua` : port de `Modules/InterruptAlert/InterruptAlert.lua` sans la data WCL ni la

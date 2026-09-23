@@ -149,9 +149,11 @@ loader:RegisterEvent("ADDON_LOADED")
 loader:SetScript("OnEvent", function(self, _, name)
     if name ~= ADDON_NAME then return end
     self:UnregisterEvent("ADDON_LOADED")
-    KickAlertDB = KickAlertDB or {}
+    -- WoW Forever ne relit pas la SavedVariables de compte : Mirror.lua fournit les replis.
+    KickAlertDB = NS.Mirror:Load(KickAlertDB) or {}
     CopyDefaults(NS.DEFAULTS, KickAlertDB)
     NS.db = KickAlertDB
+    NS.Mirror:Watch(KickAlertDB, NS.DEFAULTS)
     -- La langue choisie n'est connue qu'ici : Locale/Locale.lua a démarré sur
     -- celle du client, on réapplique le réglage sauvegardé avant de construire l'UI.
     NS.SetLocale(NS.db.locale)
@@ -181,6 +183,14 @@ SlashCmdList.KICKALERT = function(msg)
         NS.Detector:ResolveInterrupt()
         NS.Print(NS.db.spellId and string.format(L.MSG_SPELL_FORCED, NS.Detector.interruptName or argument)
             or L.MSG_SPELL_AUTO)
+    elseif command == "wipe" then
+        -- Remise à zéro complète : avec le miroir CVar (Mirror.lua), supprimer le fichier
+        -- SavedVariables ne suffit plus. Table vidée sur place, miroir réécrit, puis rechargement.
+        for key in pairs(NS.db) do NS.db[key] = nil end
+        CopyDefaults(NS.DEFAULTS, NS.db)
+        NS.Mirror:Flush()
+        NS.Print(L.MSG_WIPED)
+        if C_UI and C_UI.Reload then C_UI.Reload() elseif ReloadUI then ReloadUI() end
     elseif command == "status" then
         for _, line in ipairs(NS.Detector:StatusLines()) do NS.Print(line) end
     elseif command == "sounds" then

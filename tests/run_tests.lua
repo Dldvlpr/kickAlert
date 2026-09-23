@@ -115,7 +115,22 @@ local FILES = {
     "Locale/esMX.lua", "Locale/itIT.lua", "Locale/ptBR.lua", "Locale/ruRU.lua",
     "Locale/koKR.lua", "Locale/zhCN.lua", "Locale/zhTW.lua",
     "Locale/Locale.lua",
-    "Compat.lua", "Core.lua", "Alerts.lua", "Detector.lua", "Nameplates.lua", "Config.lua",
+    "Compat.lua", "Mirror.lua", "Core.lua", "Alerts.lua", "Detector.lua", "Nameplates.lua", "Config.lua",
+}
+
+-- CVars enregistrées par l'addon et table hôte Blizzard (Mirror.lua) : le mock n'en a pas.
+Mock.cvars = {}
+_G.g_addonCategoriesCollapsed = {}
+_G.C_CVar = {
+    RegisterCVar = function(name, default)
+        if Mock.cvars[name] == nil then Mock.cvars[name] = tostring(default) end
+    end,
+    GetCVar = function(name) return Mock.cvars[name] end,
+    SetCVar = function(name, value)
+        if Mock.cvars[name] == nil then return false end
+        Mock.cvars[name] = tostring(value)
+        return true
+    end,
 }
 
 Mock.InstallTimerAPI(useNativeTimers)
@@ -531,6 +546,76 @@ for _, entry in ipairs(ns.LOCALE_ORDER) do
     ok(ns.locales[entry.code] ~= nil, "locale proposée et chargée : " .. entry.code)
 end
 equal(ns.LocaleName("frFR"), "Français", "nom lisible d'une langue")
+
+--------------------------------------------------------------------------------
+
+suite("Miroir CVar (SavedVariables jamais relues sur WoW Forever)")
+local Mirror = ns.Mirror
+ns.db.text.size = 60
+ns.db.locale = "frFR"
+ns.db.spellId = 1766
+ns.db.anchors.text = { point = "TOP", relTo = "UIParent", relPoint = "TOP", x = 0, y = -120 }
+ok(Mirror:Flush(), "écriture quand la table a changé")
+equal(Mirror:Flush(), false, "rien ne change : pas de réécriture")
+local mirrorText = Mock.cvars.KickAlertMirror1
+ok(mirrorText:find("text.size=n60", 1, true) ~= nil, "réglage modifié recopié")
+equal(mirrorText:find("text.label", 1, true), nil, "valeur par défaut non recopiée")
+g_addonCategoriesCollapsed.KickAlert = nil      -- chemin miroir CVar seul
+local restored = Mirror:Load(nil)
+equal(restored.text.size, 60, "taille restaurée depuis le miroir")
+equal(restored.locale, "frFR", "langue restaurée")
+equal(restored.spellId, 1766, "sort forcé restauré")
+equal(restored.anchors.text.y, -120, "ancrage restauré")
+equal(restored.text.label, nil, "défauts absents du miroir (CopyDefaults les recrée)")
+equal(Mirror:Load({ locale = "deDE" }).locale, "deDE", "SavedVariables non vide : prioritaire")
+ns.db.text.size = 48
+Mock.Advance(5.1)
+equal(Mock.cvars.KickAlertMirror1:find("text.size", 1, true), nil, "recopié par le ticker OnUpdate")
+ns.db.text.size = 50
+Mock.FireEvent("PLAYER_LOGOUT")
+ok(Mock.cvars.KickAlertMirror1:find("text.size=n50", 1, true) ~= nil, "recopié à PLAYER_LOGOUT")
+-- Découpage : tranches courtes, recollage sans perte, refus au-delà de la capacité.
+local chunk = Mirror.CHUNK
+Mirror.CHUNK = 24
+ns.db.text.size = 51
+ok(Mirror:Flush(), "écriture en plusieurs tranches")
+ok(Mock.cvars.KickAlertMirror2 ~= "", "deuxième tranche remplie")
+g_addonCategoriesCollapsed.KickAlert = nil
+equal(Mirror:Load(nil).text.size, 51, "tranches recollées")
+ns.db.text.label = string.rep("x", 300)
+equal(Mirror:Flush(), false, "trop grand : refusé, miroir précédent conservé")
+ns.db.text.label = "KICK"
+Mirror.CHUNK = chunk
+-- Échappement : guillemets et antislash (config-cache.wtf stocke la valeur entre guillemets), clés numériques.
+local text = Mirror.Serialize({ note = 'dit "heal" \\ ok', list = { "a", "b" }, empty = {} })
+equal(text, 'MIR1:empty=t;list.#1=sa;list.#2=sb;note=sdit %22heal%22 %5C ok', "format")
+local back = Mirror.Deserialize(text)
+equal(back.note, 'dit "heal" \\ ok', "chaîne rendue")
+equal(back.list[2], "b", "clé numérique rendue")
+equal(#back.list, 2, "séquence intacte")
+equal(Mirror.Deserialize("MIR1:x=q1"), nil, "genre inconnu refusé")
+equal(Mirror.Deserialize("FUI1:x=n1"), nil, "préfixe étranger refusé")
+-- /ka wipe : table vidée sur place, défauts recopiés, miroir réécrit.
+ns.db.text.size = 61
+Mirror:Flush()
+SlashCmdList.KICKALERT("wipe")
+equal(ns.db.text.size, 48, "wipe : défauts rétablis")
+equal(ns.db, KickAlertDB, "wipe : même table (les modules gardent leur référence)")
+equal(g_addonCategoriesCollapsed.KickAlert, KickAlertDB, "table hôte : même table que KickAlertDB")
+-- Priorité au chargement : SavedVariables > table hôte > miroir CVar.
+g_addonCategoriesCollapsed.KickAlert = { text = { size = 33 } }
+equal(Mirror:Load(nil).text.size, 33, "table hôte prioritaire sur le miroir CVar")
+equal(Mirror:Load({ text = { size = 34 } }).text.size, 34, "SavedVariables prioritaire sur la table hôte")
+ns.db.text.size = 49
+Mirror:Flush()
+g_addonCategoriesCollapsed.KickAlert = {}
+equal(Mirror:Load(nil).text.size, 49, "table hôte vide : repli sur le miroir CVar")
+g_addonCategoriesCollapsed = {}
+Mirror:Flush()
+equal(g_addonCategoriesCollapsed.KickAlert, KickAlertDB, "table hôte recréée par Blizzard : rebranchée au flush")
+ns.db.text.size = 48
+Mirror:Flush()
+equal(Mock.cvars.KickAlertMirror1:find("text.size", 1, true), nil, "wipe : miroir réécrit sans le réglage")
 
 --------------------------------------------------------------------------------
 

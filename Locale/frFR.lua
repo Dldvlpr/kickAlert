@@ -6,6 +6,7 @@ NS.locales.frFR = L
 L.MSG_UNLOCKED = "Mode déplacement activé. /ka lock pour verrouiller."
 L.MSG_LOCKED = "Positions verrouillées."
 L.MSG_RESET = "Positions réinitialisées."
+L.MSG_WIPED = "Tous les réglages remis par défaut."
 L.MSG_SPELL_FORCED = "Interruption forcée : %s"
 L.MSG_SPELL_AUTO = "Interruption détectée automatiquement."
 L.TEST_PREVIEW = "Aperçu"

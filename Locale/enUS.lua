@@ -7,6 +7,7 @@ NS.locales.enUS = {
     MSG_UNLOCKED = "Move mode on. /ka lock to lock.",
     MSG_LOCKED = "Positions locked.",
     MSG_RESET = "Positions reset.",
+    MSG_WIPED = "All settings reset to defaults.",
     MSG_SPELL_FORCED = "Interrupt forced: %s",
     MSG_SPELL_AUTO = "Interrupt detected automatically.",
     TEST_PREVIEW = "Preview",
