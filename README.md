@@ -1,124 +1,124 @@
 # KickAlert
 
-Addon World of Warcraft, multi-version (Classic Era, TBC, Wrath, Cata, MoP Classic, retail).
-Version autonome de l'alerte Kick de MyBossSuite (`Modules/InterruptAlert`), avec un halo
-d'écran en plus et un panneau d'options graphique.
+World of Warcraft addon for every client (Classic Era, TBC, Wrath, Cata, MoP Classic, retail).
+Standalone version of the MyBossSuite Kick alert (`Modules/InterruptAlert`), with an added
+screen glow and a graphical options panel.
 
-Quand la cible ou le focus lance un sort interruptible **et** que ton interruption est
-disponible (et à portée), trois alertes indépendantes se déclenchent :
+When your target or focus casts an interruptible spell **and** your interrupt is
+ready (and in range), three independent alerts fire:
 
-- **Texte** : mot configurable (défaut `KICK`), police, taille, contour, couleur (color picker),
-  pulsation réglable, position libre.
-- **Halo** : bordure lumineuse sur les 4 côtés de l'écran, couleur et intensité (alpha via le
-  color picker), épaisseur, pulsation réglable.
-- **Son** : preset (`alarm`, `raidwarning`, `readycheck`, `ping`, `murloc`), id de SOUNDKIT ou
-  fichier (`Interface\AddOns\X\kick.ogg`).
+- **Text**: configurable word (default `KICK`), font, size, outline, color (color picker),
+  adjustable pulse, free position.
+- **Glow**: glowing border on all 4 edges of the screen, color and intensity (alpha through the
+  color picker), thickness, adjustable pulse.
+- **Sound**: preset (`alarm`, `raidwarning`, `readycheck`, `ping`, `murloc`), SOUNDKIT id or
+  file (`Interface\AddOns\X\kick.ogg`).
 
-Chaque alerte s'active, se règle et se coupe séparément.
+Each alert is enabled, tuned and turned off separately.
 
-En plus de ces trois alertes centrées sur la cible/le focus, un mot **KICK** peut s'afficher
-au-dessus de la nameplate de n'importe quelle cible hostile en train de lancer un sort
-interruptible, sans avoir besoin de la cibler.
+On top of these three target/focus alerts, a **KICK** word can show above the nameplate
+of any hostile unit casting an interruptible spell, without having to target it.
 
-## Détection (reprise de MyBossSuite)
+## Detection (taken from MyBossSuite)
 
-Trois conditions vérifiées ensemble, en continu pendant l'incantation :
-cible (ou focus) en incantation, incantation non protégée (`notInterruptible`), ton interrupt
-réellement disponible et à portée. Un ticker de 0,15 s tourne pendant l'incantation : un kick
-qui revient de cooldown au milieu du cast n'est signalé par aucun event.
+Three conditions, checked together and continuously during the cast:
+target (or focus) is casting, the cast is not protected (`notInterruptible`), your interrupt
+is actually ready and in range. A 0.15 s ticker runs during the cast: no event reports a kick
+coming off cooldown in the middle of a cast.
 
-L'interrupt est détecté, pas configuré : table par classe filtrée par ce que le personnage connaît
-vraiment (les rangs Classic sont couverts par le grimoire). `/ka spell <id>` force un cas non couvert.
+The interrupt is detected, not configured: a per-class table filtered by what the character
+actually knows (Classic ranks are covered by the spellbook). `/ka spell <id>` forces a case
+the table does not cover.
 
-Sur les clients où `UnitCastingInfo` ne répond rien sur une unité hostile, le combat log
-(`SPELL_CAST_START`) prend le relais et le sort est supposé interruptible.
+On clients where `UnitCastingInfo` returns nothing for a hostile unit, the combat log
+(`SPELL_CAST_START`) takes over and the spell is assumed interruptible.
 
 ## Installation
 
-Copier le dossier `KickAlert` dans `World of Warcraft/_<version>_/Interface/AddOns/`.
-Un seul `KickAlert.toc`, sans suffixe de version : il est chargé par tous les clients,
-et sa ligne `## Interface` liste les versions supportées (Classic Era, Anniversary,
+Copy the `KickAlert` folder into `World of Warcraft/_<version>_/Interface/AddOns/`.
+A single `KickAlert.toc`, with no version suffix: every client loads it, and its
+`## Interface` line lists the supported versions (Classic Era, Anniversary,
 Forever, TBC, Wrath, Cata, Mists, retail).
 
-## Commandes
+## Commands
 
-| Commande | Effet |
+| Command | Effect |
 |---|---|
-| `/ka` ou `/kickalert` | Ouvre le panneau d'options |
-| `/ka unlock` / `/ka lock` | Affiche le texte en permanence et le rend déplaçable / verrouille |
-| `/ka test` | Joue les 3 alertes pendant 3 secondes |
-| `/ka reset` | Remet le texte à sa position par défaut |
-| `/ka wipe` | Remet tous les réglages par défaut (SavedVariables et miroir CVar), puis recharge l'interface |
-| `/ka spell <id>` / `/ka spell auto` | Force le sort d'interruption suivi / revient à la détection |
-| `/ka status` | Interrupt détecté, disponibilité, options actives |
-| `/ka sounds` | État de chaque son proposé sur ce client |
-| `/ka sounds <motif>` | Cherche une constante SOUNDKIT, ex. `/ka sounds warning` |
+| `/ka` or `/kickalert` | Opens the options panel |
+| `/ka unlock` / `/ka lock` | Shows the text permanently and makes it movable / locks it |
+| `/ka test` | Plays the 3 alerts for 3 seconds |
+| `/ka reset` | Puts the text back at its default position |
+| `/ka wipe` | Resets every setting (SavedVariables and CVar mirror), then reloads the UI |
+| `/ka spell <id>` / `/ka spell auto` | Forces the tracked interrupt spell / goes back to detection |
+| `/ka status` | Detected interrupt, availability, active options |
+| `/ka sounds` | State of each offered sound on this client |
+| `/ka sounds <pattern>` | Searches a SOUNDKIT constant, e.g. `/ka sounds warning` |
 
-Le texte et le halo restent affichés tant que le panneau d'options est ouvert : c'est l'aperçu.
+The text and the glow stay on screen while the options panel is open: this is the preview.
 
-## Langue
+## Language
 
-L'addon est en anglais à l'installation. Le panneau d'options propose les 11 langues
-du client (plus « Auto » pour suivre celle du jeu) ; le changement s'applique au
-rechargement de l'interface, via le bouton prévu à cet effet.
+The addon is in English after install. The options panel offers the 11 client
+languages (plus "Auto" to follow the game language); the change applies on
+UI reload, through the dedicated button.
 
-Une clé non traduite retombe sur l'anglais plutôt que de disparaître.
+An untranslated key falls back to English instead of disappearing.
 
-## Sons
+## Sounds
 
-Les constantes `SOUNDKIT` ne sont pas les mêmes d'un client à l'autre. Seuls les sons
-que le client sait réellement jouer sont proposés — `/ka sounds` montre lesquels. Le
-champ libre du panneau accepte en plus n'importe quel id `SOUNDKIT` ou chemin de
-fichier (`Interface\AddOns\MonAddon\kick.ogg`).
+`SOUNDKIT` constants differ from one client to another. Only the sounds the client
+can actually play are offered — `/ka sounds` shows which ones. The free field of
+the panel also accepts any `SOUNDKIT` id or file path
+(`Interface\AddOns\MyAddon\kick.ogg`).
 
-## Fichiers
+## Files
 
-- `Compat.lua` : toutes les API qui diffèrent entre versions (sorts, incantations, portée, sons,
-  timers, dégradés, color picker, panneau d'options). Copie de la partie utile de
+- `Compat.lua`: every API that differs between versions (spells, casts, range, sounds,
+  timers, gradients, color picker, options panel). Copy of the useful part of
   `MyBossSuite/Core/Compat.lua`.
-- `Mirror.lua` : doubles des réglages pour WoW Forever 1.60, qui écrit les SavedVariables de compte mais ne les relit pas. La table est rangée dans `g_addonCategoriesCollapsed` (sauvegarde de Blizzard_AddOnList, `WTF/SavedVariables/`, relue au démarrage) et recopiée dans des CVars `KickAlertMirror1..8` (survivent au `/reload`). Si la sauvegarde revient vide, ces doubles la remplacent. Conséquence : supprimer `KickAlert.lua` dans `WTF` ne remet plus à zéro ; utiliser `/ka wipe`.
-- `Core.lua` : SavedVariables (`KickAlertDB`), bus interne, mixin de positionnement, slash.
-- `Alerts.lua` : les trois alertes.
-- `Detector.lua` : port de `Modules/InterruptAlert/InterruptAlert.lua` sans la data WCL ni la
-  rotation de groupe.
-- `Nameplates.lua` : "KICK" au-dessus de la nameplate de toute cible hostile en incantation
-  interruptible, sans ciblage.
-- `Config.lua` : panneau d'options, widgets Blizzard uniquement.
-- `tests/run.sh` : syntaxe + suite headless sur 4 configurations de client (`lua5.1` requis).
+- `Mirror.lua`: copies of the settings for WoW Forever 1.60, which writes account SavedVariables but does not read them back. The table is stored in `g_addonCategoriesCollapsed` (Blizzard_AddOnList save, `WTF/SavedVariables/`, read at startup) and copied into `KickAlertMirror1..8` CVars (they survive `/reload`). If the save comes back empty, these copies replace it. Consequence: deleting `KickAlert.lua` in `WTF` no longer resets anything; use `/ka wipe`.
+- `Core.lua`: SavedVariables (`KickAlertDB`), internal bus, positioning mixin, slash commands.
+- `Alerts.lua`: the three alerts.
+- `Detector.lua`: port of `Modules/InterruptAlert/InterruptAlert.lua` without the WCL data or the
+  group rotation.
+- `Nameplates.lua`: "KICK" above the nameplate of any hostile unit casting an interruptible
+  spell, without targeting.
+- `Config.lua`: options panel, Blizzard widgets only.
+- `tests/run.sh`: syntax check + headless suite on 4 client configurations (`lua5.1` required).
 
-## Vérification
+## Verification
 
 ```bash
 tests/run.sh
 ```
 
-## Limites connues
+## Known limitations
 
-- Classic Era ancien : sans `UNIT_SPELLCAST_*` sur la cible, seul le repli combat log fonctionne,
-  et il ne sait pas si un sort est protégé.
-- Le halo n'est pas déplaçable : il est lié aux bords de l'écran par construction.
-- Polices supplémentaires uniquement via LibSharedMedia embarquée par une autre addon.
+- Old Classic Era: without `UNIT_SPELLCAST_*` on the target, only the combat log fallback works,
+  and it cannot tell whether a spell is protected.
+- The glow cannot be moved: it is tied to the screen edges by design.
+- Extra fonts only through a LibSharedMedia embedded by another addon.
 
-## Conformité avec la politique Blizzard sur les add-ons
+## Compliance with the Blizzard add-on policy
 
-Points de la *World of Warcraft UI Add-On Development Policy* et de la façon dont KickAlert les respecte :
+Points of the *World of Warcraft UI Add-On Development Policy* and how KickAlert meets them:
 
-| Exigence Blizzard | KickAlert |
+| Blizzard requirement | KickAlert |
 |---|---|
-| Add-on gratuit, aucun paiement ni fonctionnalité payante | Gratuit, licence GPL-3.0-or-later, aucune version premium |
-| Code entièrement visible, ni caché ni obfusqué | Lua en clair, aucun `loadstring`, aucune chaîne encodée |
-| Aucune publicité, aucune sollicitation de dons en jeu | Aucun message de ce type dans l'interface ni dans le chat |
-| Aucune automatisation du jeu, aucun appel d'API protégée | L'addon **affiche** seulement : aucun `CastSpell*`, `TargetUnit`, `RunMacro`, `UseAction` ni action en combat. Le joueur lance lui-même son interruption |
-| Pas d'impact négatif sur les royaumes ni les autres joueurs | Aucun message réseau (`SendAddonMessage`, chat), aucune requête externe ; le handler du combat log sort en deux comparaisons de chaînes |
-| Aucun contenu offensant | Textes et sons choisis par le joueur, défauts neutres (`KICK`, sons du client) |
-| Respect des CGU / EULA, Blizzard peut désactiver une fonctionnalité | Uniquement des API publiques documentées, passées par `Compat.lua` pour suivre les changements de client |
+| Free add-on, no payment or paid feature | Free, GPL-3.0-or-later license, no premium version |
+| Code fully visible, neither hidden nor obfuscated | Plain Lua, no `loadstring`, no encoded string |
+| No advertising, no in-game donation request | No such message in the interface or in chat |
+| No game automation, no protected API call | The addon only **displays**: no `CastSpell*`, `TargetUnit`, `RunMacro`, `UseAction` or combat action. The player casts the interrupt themselves |
+| No negative impact on realms or other players | No network message (`SendAddonMessage`, chat), no external request; the combat log handler exits after two string comparisons |
+| No offensive content | Texts and sounds chosen by the player, neutral defaults (`KICK`, client sounds) |
+| Respect of the ToS / EULA, Blizzard may disable a feature | Only public documented APIs, routed through `Compat.lua` to follow client changes |
 
-Données : uniquement les réglages du joueur dans `KickAlertDB` (SavedVariables). Aucune donnée
-personnelle, aucune télémétrie.
+Data: only the player's settings in `KickAlertDB` (SavedVariables). No personal
+data, no telemetry.
 
-World of Warcraft® et Blizzard Entertainment® sont des marques de Blizzard Entertainment, Inc.
-KickAlert est un projet indépendant, ni affilié à ni approuvé par Blizzard Entertainment.
+World of Warcraft® and Blizzard Entertainment® are trademarks of Blizzard Entertainment, Inc.
+KickAlert is an independent project, neither affiliated with nor endorsed by Blizzard Entertainment.
 
-## Licence
+## License
 
-GPL-3.0-or-later, comme MyBossSuite dont ce code dérive (voir `LICENSE`).
+GPL-3.0-or-later, like MyBossSuite from which this code derives (see `LICENSE`).
