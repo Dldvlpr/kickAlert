@@ -2,3 +2,6 @@
 KickAlert-*.zip
 
 .DS_Store
+
+# Sortie du packager BigWigs lancé en local.
+.release/
